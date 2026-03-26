@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>二代基因组测序算法可视化</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+
+  <header id="header">
+    <div class="header-inner">
+      <div class="header-logo">🧬</div>
+      <div>
+        <h1>二代基因组测序（NGS）算法可视化</h1>
+        <p class="subtitle">从样本DNA到基因变异报告——Illumina测序全流程交互式学习</p>
+      </div>
+      <div class="header-badge">mock数据演示</div>
+      <a href="docs.html" class="doc-link" title="查看技术说明文档">📄 技术文档</a>
+    </div>
+  </header>
+
+  <div id="step-bar">
+    <div id="step-bar-inner">
+      <!-- 由JS生成 -->
+    </div>
+  </div>
+
+  <div id="content">
+
+    <div id="vis-panel">
+      <div id="vis-header">
+        <h2 id="step-title"></h2>
+        <p id="step-desc"></p>
+      </div>
+      <div id="vis-area">
+        <svg id="main-svg" viewBox="0 0 800 380"
+             preserveAspectRatio="xMidYMid meet"
+             xmlns="http://www.w3.org/2000/svg">
+        </svg>
+      </div>
+      <div id="substep-bar">
+        <div id="substep-dots"></div>
+        <p id="substep-label"></p>
+      </div>
+    </div>
+
+    <div id="theory-panel">
+      <div class="theory-hdr">
+        <span class="theory-icon">📖</span>
+        <h3>原理讲解</h3>
+      </div>
+      <div id="theory-content"></div>
+    </div>
+
+  </div>
+
+  <div id="controls-bar">
+    <button class="ctrl-btn" id="btn-prev">◀ 上一步</button>
+    <div class="ctrl-group">
+      <button class="ctrl-btn" id="btn-sub-prev" title="回退一帧">⏮ 回退</button>
+      <button class="ctrl-btn primary" id="btn-play">▶ 播放</button>
+      <button class="ctrl-btn" id="btn-sub-next" title="前进一帧">前进 ⏭</button>
+    </div>
+    <button class="ctrl-btn" id="btn-next">下一步 ▶</button>
+  </div>
+
+</div>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

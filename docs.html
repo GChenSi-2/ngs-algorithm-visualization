@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>技术说明文档 — NGS 算法可视化</title>
+<style>
+/* ======================================================
+   CSS 变量 & 重置
+   ====================================================== */
+:root {
+  --bg:       #0d1117;
+  --bg2:      #161b22;
+  --bg3:      #1c2333;
+  --border:   #30363d;
+  --text:     #c9d1d9;
+  --text2:    #8b949e;
+  --accent:   #388bfd;
+  --green:    #3fb950;
+  --red:      #f85149;
+  --amber:    #d29922;
+  --purple:   #8b5cf6;
+  --A:        #3fb950;
+  --T:        #f85149;
+  --C:        #388bfd;
+  --G:        #d29922;
+  --sidebar-w:260px;
+}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI',
+               'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+/* ======================================================
+   顶部导航栏
+   ====================================================== */
+#topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 52px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 16px;
+  z-index: 100;
+}
+.topbar-logo { font-size: 22px; }
+#topbar h1 { font-size: 15px; font-weight: 700; flex:1; }
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 14px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+.back-btn:hover { background: var(--border); }
+.badge {
+  background: rgba(56,139,253,0.18);
+  color: var(--accent);
+  border: 1px solid rgba(56,139,253,0.4);
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* ======================================================
+   布局：侧边栏 + 主内容
+   ====================================================== */
+#layout {
+  display: flex;
+  padding-top: 52px;
+  min-height: 100vh;
+}
+
+/* 侧边栏 */
+#sidebar {
+  position: fixed;
+  top: 52px; left: 0;
+  width: var(--sidebar-w);
+  height: calc(100vh - 52px);
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 20px 0 40px;
+}
+#sidebar::-webkit-scrollbar { width: 4px; }
+#sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.nav-group-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text2);
+  text-transform: uppercase;
+  padding: 14px 20px 6px;
+}
+.nav-item {
+  display: block;
+  padding: 6px 20px;
+  color: var(--text2);
+  text-decoration: none;
+  font-size: 13px;
+  border-left: 2px solid transparent;
+  transition: all 0.15s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nav-item:hover { color: var(--text); background: var(--bg3); }
+.nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(56,139,253,0.08); }
+.nav-item.sub { padding-left: 34px; font-size: 12px; }
+
+/* 主内容区 */
+#content {
+  margin-left: var(--sidebar-w);
+  padding: 40px 56px 80px 48px;
+  max-width: 960px;
+  min-width: 0;
+  flex: 1;
+}
+
+/* ======================================================
+   文章排版
+   ====================================================== */
+section { margin-bottom: 56px; }
+h2.sec-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+h2.sec-title .sec-icon { font-size: 20px; }
+h3.sub-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 32px 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+h3.sub-title::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 16px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+h4.fn-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--amber);
+  margin: 20px 0 8px;
+  font-family: 'Courier New', monospace;
+}
+p { margin-bottom: 10px; color: var(--text); line-height: 1.75; }
+ul, ol { margin: 8px 0 10px 20px; line-height: 2; }
+li { color: var(--text); }
+strong { color: #e6edf3; font-weight: 600; }
+code {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 12.5px;
+  color: var(--green);
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ======================================================
+   代码块
+   ====================================================== */
+pre {
+  background: #010409;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  margin: 12px 0 18px;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+pre code { background: none; border: none; padding: 0; color: #c9d1d9; font-size: inherit; }
+.kw  { color: #ff7b72; }   /* 关键字 */
+.fn  { color: #d2a8ff; }   /* 函数名 */
+.str { color: #a5d6ff; }   /* 字符串 */
+.cmt { color: #8b949e; font-style: italic; } /* 注释 */
+.num { color: #79c0ff; }   /* 数字 */
+.var { color: #ffa657; }   /* 变量 */
+.op  { color: #f47067; }   /* 运算符 */
+
+/* ======================================================
+   信息框
+   ====================================================== */
+.info-box {
+  background: rgba(56,139,253,0.1);
+  border-left: 4px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 13px;
+  line-height: 1.65;
+}
+.warn-box {
+  background: rgba(210,153,34,0.12);
+  border-left: 4px solid var(--amber);
+  border-radius: 0 6px 6px 0;
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 13px;
+}
+.good-box {
+  background: rgba(63,185,80,0.1);
+  border-left: 4px solid var(--green);
+  border-radius: 0 6px 6px 0;
+  padding: 12px 16px;
+  margin: 14px 0;
+  font-size: 13px;
+}
+
+/* ======================================================
+   文件卡片
+   ====================================================== */
+.file-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 18px 20px;
+  margin: 14px 0;
+}
+.file-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.file-tag {
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.file-size {
+  font-size: 11px;
+  color: var(--text2);
+  margin-left: auto;
+}
+
+/* ======================================================
+   函数签名表
+   ====================================================== */
+.fn-sig {
+  background: #010409;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 14px 0 20px;
+}
+.fn-sig-head {
+  background: var(--bg3);
+  padding: 8px 14px;
+  font-size: 11px;
+  color: var(--text2);
+  border-bottom: 1px solid var(--border);
+  font-family: monospace;
+}
+.fn-sig-body {
+  padding: 12px 16px;
+  font-family: 'Courier New', monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: #c9d1d9;
+}
+table.param-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+table.param-table th {
+  background: var(--bg3);
+  padding: 7px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text2);
+  border: 1px solid var(--border);
+  font-size: 12px;
+}
+table.param-table td {
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  vertical-align: top;
+  line-height: 1.6;
+}
+table.param-table tr:nth-child(even) td { background: rgba(22,27,34,0.5); }
+
+/* ======================================================
+   流程图（纯CSS）
+   ====================================================== */
+.flow-diagram {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+  margin: 20px 0;
+  padding: 20px;
+  background: var(--bg2);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.flow-node {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 16px;
+  text-align: center;
+  min-width: 80px;
+  font-size: 12px;
+}
+.flow-node.accent { border-color: var(--accent); color: var(--accent); }
+.flow-node.green  { border-color: var(--green);  color: var(--green); }
+.flow-node.amber  { border-color: var(--amber);  color: var(--amber); }
+.flow-arrow {
+  font-size: 18px;
+  color: var(--text2);
+  padding: 0 6px;
+}
+.flow-label { font-size: 10px; color: var(--text2); margin-top: 4px; }
+
+/* ======================================================
+   碱基标签
+   ====================================================== */
+.btag {
+  display: inline-block;
+  width: 20px; height: 20px;
+  border-radius: 3px;
+  text-align: center;
+  line-height: 20px;
+  font-size: 11px;
+  font-weight: bold;
+  color: white;
+  margin: 0 2px;
+  vertical-align: middle;
+}
+.bA { background: var(--A); }
+.bT { background: var(--T); }
+.bC { background: var(--C); }
+.bG { background: var(--G); }
+
+/* 步骤徽章 */
+.step-badge {
+  display: inline-block;
+  background: rgba(56,139,253,0.2);
+  color: var(--accent);
+  border: 1px solid rgba(56,139,253,0.4);
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-right: 8px;
+}
+
+/* 数据结构图 */
+.ds-box {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin: 12px 0;
+  font-family: monospace;
+  font-size: 12.5px;
+  line-height: 1.8;
+}
+.ds-key { color: var(--amber); }
+.ds-type { color: var(--accent); }
+.ds-cmt  { color: var(--text2); }
+
+/* 目录页 hero */
+.hero {
+  background: linear-gradient(135deg, #1c2333 0%, #161b22 100%);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 32px 36px;
+  margin-bottom: 40px;
+}
+.hero h2 { font-size: 26px; font-weight: 700; margin-bottom: 10px; }
+.hero p { color: var(--text2); font-size: 14px; margin-bottom: 20px; }
+.hero-stats {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+.stat { text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; color: var(--accent); }
+.stat-lbl { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+/* 版本标记 */
+.ver-tag {
+  display: inline-block;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--text2);
+  font-family: monospace;
+}
+</style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<div id="topbar">
+  <div class="topbar-logo">🧬</div>
+  <h1>NGS算法可视化 · 技术说明文档</h1>
+  <span class="badge">v1.0</span>
+  <a href="index.html" class="back-btn">← 返回可视化应用</a>
+</div>
+
+<div id="layout">
+
+<!-- ==================== 侧边栏导航 ==================== -->
+<nav id="sidebar">
+  <div class="nav-group-title">概览</div>
+  <a class="nav-item" href="#overview">项目概述</a>
+  <a class="nav-item" href="#architecture">技术架构</a>
+  <a class="nav-item" href="#dataflow">数据流转</a>
+
+  <div class="nav-group-title">文件说明</div>
+  <a class="nav-item" href="#file-index">index.html</a>
+  <a class="nav-item" href="#file-css">css/style.css</a>
+  <a class="nav-item" href="#file-data">js/data.js</a>
+  <a class="nav-item" href="#file-app">js/app.js</a>
+
+  <div class="nav-group-title">核心算法</div>
+  <a class="nav-item" href="#algo-svg">SVG 渲染引擎</a>
+  <a class="nav-item sub" href="#algo-svg-primitives">基础绘图函数</a>
+  <a class="nav-item sub" href="#algo-drawbase">drawBase / drawSeq</a>
+  <a class="nav-item" href="#algo-data-gen">Mock 数据生成</a>
+  <a class="nav-item sub" href="#algo-genqual">genQual（质量分）</a>
+  <a class="nav-item sub" href="#algo-makeread">makeRead（读段）</a>
+  <a class="nav-item" href="#algo-step1">渲染：步骤1 片段化</a>
+  <a class="nav-item" href="#algo-step2">渲染：步骤2 文库构建</a>
+  <a class="nav-item" href="#algo-step3">渲染：步骤3 SBS测序</a>
+  <a class="nav-item" href="#algo-step4">渲染：步骤4 碱基识别</a>
+  <a class="nav-item" href="#algo-step5">渲染：步骤5 序列比对</a>
+  <a class="nav-item" href="#algo-step6">渲染：步骤6 变异识别</a>
+  <a class="nav-item" href="#algo-anim">动画状态机</a>
+  <a class="nav-item" href="#algo-nav">导航系统</a>
+
+  <div class="nav-group-title">参考</div>
+  <a class="nav-item" href="#data-structures">数据结构速查</a>
+  <a class="nav-item" href="#keyboard">键盘快捷键</a>
+  <a class="nav-item" href="#extend">扩展指南</a>
+</nav>
+
+<!-- ==================== 主内容 ==================== -->
+<main id="content">
+
+<!-- Hero -->
+<div class="hero">
+  <h2>🧬 二代基因组测序算法可视化<br>技术说明文档</h2>
+  <p>本文档详尽说明项目的整体架构、每个源文件的职责、以及所有核心算法和渲染逻辑的实现原理。</p>
+  <div class="hero-stats">
+    <div class="stat"><div class="stat-num">4</div><div class="stat-lbl">源文件</div></div>
+    <div class="stat"><div class="stat-num">1,502</div><div class="stat-lbl">总代码行</div></div>
+    <div class="stat"><div class="stat-num">6</div><div class="stat-lbl">算法步骤</div></div>
+    <div class="stat"><div class="stat-num">27</div><div class="stat-lbl">动画帧</div></div>
+    <div class="stat"><div class="stat-num">0</div><div class="stat-lbl">外部依赖</div></div>
+  </div>
+</div>
+
+<!-- ================================================
+     一、项目概述
+     ================================================ -->
+<section id="overview">
+  <h2 class="sec-title"><span class="sec-icon">📋</span>项目概述</h2>
+
+  <p>本项目是一个纯前端的交互式教学应用，将 Illumina 二代基因组测序（Next-Generation Sequencing, NGS）的完整生信分析流程拆解为 <strong>6个可视化步骤</strong>，每个步骤配有动画演示和原理讲解，支持手动逐帧浏览和自动播放。</p>
+
+  <h3 class="sub-title">设计目标</h3>
+  <ul>
+    <li><strong>教育性</strong>：以简化的 mock 数据集展示算法的核心逻辑，而非实际生产代码</li>
+    <li><strong>交互性</strong>：每个步骤可独立播放、暂停、回退、重放，降低学习门槛</li>
+    <li><strong>零依赖</strong>：不依赖任何第三方库（无 React/Vue/D3.js），便于理解和二次修改</li>
+    <li><strong>可扩展</strong>：步骤以数组对象定义，新增步骤只需追加一个配置对象</li>
+  </ul>
+
+  <h3 class="sub-title">覆盖的NGS流程</h3>
+  <div class="flow-diagram">
+    <div class="flow-node accent"><div>DNA</div><div class="flow-label">样本</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div>片段化</div><div class="flow-label">步骤1</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div>文库构建</div><div class="flow-label">步骤2</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div>SBS测序</div><div class="flow-label">步骤3</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div>碱基识别</div><div class="flow-label">步骤4</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node"><div>序列比对</div><div class="flow-label">步骤5</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node green"><div>变异识别</div><div class="flow-label">步骤6</div></div>
+  </div>
+
+  <h3 class="sub-title">技术选型</h3>
+  <table class="param-table">
+    <tr><th>技术</th><th>版本/规范</th><th>用途</th></tr>
+    <tr><td><strong>HTML5</strong></td><td>Living Standard</td><td>页面结构、SVG 容器</td></tr>
+    <tr><td><strong>SVG 1.1</strong></td><td>W3C Rec.</td><td>全部可视化图形渲染（内联生成）</td></tr>
+    <tr><td><strong>CSS3</strong></td><td>—</td><td>布局（Flexbox）、主题变量、过渡动画</td></tr>
+    <tr><td><strong>Vanilla JS</strong></td><td>ES2020</td><td>渲染逻辑、动画控制、DOM 交互</td></tr>
+  </table>
+</section>
+
+<!-- ================================================
+     二、技术架构
+     ================================================ -->
+<section id="architecture">
+  <h2 class="sec-title"><span class="sec-icon">🏗️</span>技术架构</h2>
+
+  <h3 class="sub-title">目录结构</h3>
+  <pre><code>NGS可视化/
+├── index.html          <span class="cmt"># 应用主入口，HTML 骨架</span>
+├── docs.html           <span class="cmt"># 本技术说明文档（独立页面）</span>
+├── css/
+│   └── style.css       <span class="cmt"># 全局样式 + CSS 变量主题系统</span>
+└── js/
+    ├── data.js         <span class="cmt"># Mock 基因组数据 + 数据生成函数</span>
+    └── app.js          <span class="cmt"># 主程序：SVG引擎 + 步骤渲染 + 动画控制</span></code></pre>
+
+  <h3 class="sub-title">模块依赖关系</h3>
+  <pre><code><span class="cmt">/* 加载顺序（index.html script标签顺序） */</span>
+data.js   <span class="cmt">// ① 先加载：定义全局常量 BASE_COLOR, REF, READS 等</span>
+  ↓
+app.js    <span class="cmt">// ② 后加载：依赖 data.js 的所有全局变量</span></code></pre>
+
+  <div class="warn-box">
+    ⚠️ 两个 JS 文件通过<strong>全局变量</strong>共享数据（<code>BASE_COLOR</code>、<code>REF</code>、<code>READS</code> 等），因此 <code>data.js</code> 必须在 <code>app.js</code> 之前加载。这是 "无构建工具" 架构的典型约束。
+  </div>
+
+  <h3 class="sub-title">渲染架构（快照模型）</h3>
+  <p>本项目采用 <strong>"快照帧"</strong> 渲染模式，而非连续动画帧（requestAnimationFrame）：</p>
+  <ul>
+    <li>每个步骤定义若干离散的 <strong>substep（子步骤帧）</strong></li>
+    <li>每次状态变化时，重新生成整个 SVG 内容字符串并写入 <code>innerHTML</code></li>
+    <li>帧间切换由 <code>setTimeout</code> 驱动，间隔 2200ms（可调）</li>
+    <li>好处：逻辑简单，每帧状态完全独立，易于调试；代价是不支持连续过渡动画</li>
+  </ul>
+  <pre><code><span class="cmt">// 核心渲染循环（简化）</span>
+<span class="kw">function</span> <span class="fn">render</span>() {
+  <span class="kw">const</span> <span class="var">step</span> = STEPS[curStep];
+  document.<span class="fn">getElementById</span>(<span class="str">'main-svg'</span>).innerHTML
+    = step.<span class="fn">render</span>(curSub);   <span class="cmt">// ← 调用对应步骤的渲染函数</span>
+  <span class="fn">updateStepNav</span>();
+  <span class="fn">updateSubstepDots</span>();
+  <span class="fn">updateButtons</span>();
+}</code></pre>
+
+  <h3 class="sub-title">状态模型</h3>
+  <p>应用仅维护4个顶层状态变量，所有 UI 都是这4个变量的纯函数：</p>
+  <div class="ds-box">
+    <span class="kw">let</span> <span class="ds-key">curStep</span>    = <span class="num">0</span>;       <span class="ds-cmt">// 当前步骤索引 [0, 5]</span><br>
+    <span class="kw">let</span> <span class="ds-key">curSub</span>     = <span class="num">0</span>;       <span class="ds-cmt">// 当前子帧索引 [0, substepLabels.length-1]</span><br>
+    <span class="kw">let</span> <span class="ds-key">isPlaying</span>  = <span class="kw">false</span>;   <span class="ds-cmt">// 是否处于自动播放状态</span><br>
+    <span class="kw">let</span> <span class="ds-key">playTimer</span>  = <span class="kw">null</span>;    <span class="ds-cmt">// setTimeout 句柄（用于取消）</span>
+  </div>
+</section>
+
+<!-- ================================================
+     三、数据流转
+     ================================================ -->
+<section id="dataflow">
+  <h2 class="sec-title"><span class="sec-icon">🔄</span>数据流转</h2>
+  <p>从原始 mock 数据到屏幕像素，数据经过以下变换链：</p>
+  <pre><code>data.js 定义
+  REF (string)              <span class="cmt">// "ATCGAACGTTACGGATCGATCGATGAATCGATCGATCGA"</span>
+  READS (Array&lt;ReadObj&gt;)    <span class="cmt">// 9条Read对象</span>
+  SIGNAL_DATA (Array)       <span class="cmt">// 8个位置的荧光强度</span>
+        ↓
+app.js 渲染函数 renderStepN(substep)
+  → 布局计算（坐标、宽高）
+  → 调用 SVG 工具函数 R/T/L/C/P
+  → 拼接 SVG 字符串
+        ↓
+render() 函数
+  → svg.innerHTML = svgString   <span class="cmt">// 写入 DOM</span>
+        ↓
+浏览器解析 SVG → 光栅化 → 显示</code></pre>
+
+  <div class="info-box">
+    所有坐标以 SVG viewBox <code>0 0 800 380</code> 为坐标系。浏览器通过 <code>preserveAspectRatio="xMidYMid meet"</code> 自动缩放以适应容器，保持宽高比不变。
+  </div>
+</section>
+
+<!-- ================================================
+     四、文件说明：index.html
+     ================================================ -->
+<section id="file-index">
+  <h2 class="sec-title"><span class="sec-icon">📄</span>文件：index.html</h2>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-tag">index.html</span>
+      <span class="ver-tag">HTML5</span>
+      <span class="file-size">72 行 · 2.0 KB</span>
+    </div>
+    <p>应用的唯一 HTML 骨架文件，<strong>仅负责结构，不含任何业务逻辑</strong>。所有动态内容由 JS 在 <code>DOMContentLoaded</code> 事件后注入。</p>
+  </div>
+
+  <h3 class="sub-title">关键 DOM 节点及职责</h3>
+  <table class="param-table">
+    <tr><th>ID / 选择器</th><th>职责</th><th>内容来源</th></tr>
+    <tr><td><code>#step-bar-inner</code></td><td>步骤导航标签容器</td><td>JS <code>updateStepNav()</code> 生成</td></tr>
+    <tr><td><code>#main-svg</code></td><td>主可视化画布（SVG元素，viewBox 800×380）</td><td>JS <code>render()</code> 写入 innerHTML</td></tr>
+    <tr><td><code>#step-title</code></td><td>当前步骤标题</td><td>JS <code>render()</code> 写入</td></tr>
+    <tr><td><code>#step-desc</code></td><td>步骤简介文字</td><td>JS <code>render()</code> 写入</td></tr>
+    <tr><td><code>#substep-dots</code></td><td>子帧进度点容器</td><td>JS <code>updateSubstepDots()</code> 生成</td></tr>
+    <tr><td><code>#substep-label</code></td><td>当前子帧文字说明</td><td>JS <code>updateSubstepDots()</code> 写入</td></tr>
+    <tr><td><code>#theory-content</code></td><td>右侧原理讲解面板</td><td>JS <code>render()</code> 写入 innerHTML</td></tr>
+    <tr><td><code>#btn-play/prev/next/...</code></td><td>控制按钮（5个）</td><td>静态 HTML，JS 绑定事件</td></tr>
+  </table>
+
+  <h3 class="sub-title">脚本加载顺序</h3>
+  <pre><code><span class="cmt">&lt;!-- 放在 &lt;/body&gt; 前，确保DOM已就绪 --&gt;</span>
+&lt;<span class="kw">script</span> src=<span class="str">"js/data.js"</span>&gt;&lt;/<span class="kw">script</span>&gt;   <span class="cmt">&lt;!-- 必须第一 --&gt;</span>
+&lt;<span class="kw">script</span> src=<span class="str">"js/app.js"</span>&gt;&lt;/<span class="kw">script</span>&gt;    <span class="cmt">&lt;!-- 必须第二 --&gt;</span></code></pre>
+  <p>采用同步加载（非 <code>defer</code>/<code>async</code>），顺序保证 <code>data.js</code> 的全局变量在 <code>app.js</code> 执行前就绪。实际触发渲染在 <code>DOMContentLoaded</code> 回调中。</p>
+</section>
+
+<!-- ================================================
+     五、文件说明：style.css
+     ================================================ -->
+<section id="file-css">
+  <h2 class="sec-title"><span class="sec-icon">🎨</span>文件：css/style.css</h2>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-tag">css/style.css</span>
+      <span class="ver-tag">CSS3</span>
+      <span class="file-size">312 行 · 7.3 KB</span>
+    </div>
+    <p>全局样式表，定义了整个应用的视觉主题、布局结构和组件样式。</p>
+  </div>
+
+  <h3 class="sub-title">CSS 变量系统（主题）</h3>
+  <p>所有颜色通过 <code>:root</code> 中的 CSS 自定义属性（CSS Variables）统一管理，修改单一变量即可全局生效：</p>
+  <pre><code><span class="fn">:root</span> {
+  <span class="cmt">/* 背景层次（3层深度）*/</span>
+  <span class="var">--bg</span>:    <span class="str">#0d1117</span>;   <span class="cmt">/* 最深层：页面背景 */</span>
+  <span class="var">--bg2</span>:   <span class="str">#161b22</span>;   <span class="cmt">/* 中层：面板、导航栏 */</span>
+  <span class="var">--bg3</span>:   <span class="str">#1c2333</span>;   <span class="cmt">/* 浅层：卡片、代码块 */</span>
+
+  <span class="cmt">/* 功能色 */</span>
+  <span class="var">--accent</span>: <span class="str">#388bfd</span>;  <span class="cmt">/* 主强调色（蓝）*/</span>
+  <span class="var">--green</span>:  <span class="str">#3fb950</span>;  <span class="cmt">/* 成功/完成 */</span>
+  <span class="var">--red</span>:    <span class="str">#f85149</span>;  <span class="cmt">/* 错误/错配 */</span>
+  <span class="var">--amber</span>:  <span class="str">#d29922</span>;  <span class="cmt">/* 警告/注意 */</span>
+
+  <span class="cmt">/* DNA碱基颜色（与 data.js BASE_COLOR 对应） */</span>
+  <span class="var">--A</span>: <span class="str">#3fb950</span>;  <span class="cmt">/* 腺嘌呤 Adenine → 绿 */</span>
+  <span class="var">--T</span>: <span class="str">#f85149</span>;  <span class="cmt">/* 胸腺嘧啶 Thymine → 红 */</span>
+  <span class="var">--C</span>: <span class="str">#388bfd</span>;  <span class="cmt">/* 胞嘧啶 Cytosine → 蓝 */</span>
+  <span class="var">--G</span>: <span class="str">#d29922</span>;  <span class="cmt">/* 鸟嘌呤 Guanine → 黄/琥珀 */</span>
+}</code></pre>
+
+  <div class="info-box">
+    碱基颜色同时在 CSS（<code>--A/T/C/G</code>，用于 HTML 面板中的 <code>.bA/.bT/.bC/.bG</code> 标签）和 JS（<code>BASE_COLOR</code> 对象，用于 SVG 渲染）中定义，两者<strong>保持一致</strong>，修改时需同步更新。
+  </div>
+
+  <h3 class="sub-title">布局系统</h3>
+  <p>整体采用三层 Flexbox 布局：</p>
+  <pre><code><span class="fn">#app</span>              <span class="cmt">/* flex-direction: column（垂直主轴）*/</span>
+  ├── header        <span class="cmt">/* flex-shrink: 0，固定高度 */</span>
+  ├── #step-bar     <span class="cmt">/* flex-shrink: 0，步骤导航 */</span>
+  ├── #content      <span class="cmt">/* flex: 1（水平Flex，占满剩余高度）*/</span>
+  │     ├── #vis-panel    <span class="cmt">/* flex: 1，自动填充 */</span>
+  │     └── #theory-panel <span class="cmt">/* width: 300px，固定宽度 */</span>
+  └── #controls-bar <span class="cmt">/* flex-shrink: 0，固定高度 */</span></code></pre>
+  <p>关键属性：<code>body { height: 100%; overflow: hidden; }</code> 配合 <code>#app { height: 100vh; }</code>，使整个应用在视口内不滚动，内容区可独立滚动（<code>#theory-panel</code> 有 <code>overflow-y: auto</code>）。</p>
+
+  <h3 class="sub-title">主要组件类</h3>
+  <table class="param-table">
+    <tr><th>类名</th><th>用途</th></tr>
+    <tr><td><code>.step-item</code></td><td>步骤导航标签，通过 <code>.active</code> / <code>.done</code> 切换状态样式</td></tr>
+    <tr><td><code>.sdot</code></td><td>子帧进度圆点，点击可跳帧</td></tr>
+    <tr><td><code>.ctrl-btn</code></td><td>控制按钮基础样式；<code>.primary</code> 变体为主操作按钮；<code>.playing</code> 变体显示紫色暂停状态</td></tr>
+    <tr><td><code>.tsec / .hbox / .hbox-g</code></td><td>原理面板内的文本段落和信息框组件</td></tr>
+    <tr><td><code>.btag .bA/T/C/G</code></td><td>碱基内联标签（用于 HTML 文本中的彩色碱基徽标）</td></tr>
+  </table>
+</section>
+
+<!-- ================================================
+     六、文件说明：data.js
+     ================================================ -->
+<section id="file-data">
+  <h2 class="sec-title"><span class="sec-icon">🗄️</span>文件：js/data.js</h2>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-tag">js/data.js</span>
+      <span class="ver-tag">ES2020</span>
+      <span class="file-size">69 行 · 2.8 KB</span>
+    </div>
+    <p>全局 Mock 数据层。定义参考序列、测序读段及衍生数据，<strong>完全无副作用</strong>（仅声明常量和工具函数），无 DOM 操作。</p>
+  </div>
+
+  <h3 class="sub-title">全局常量一览</h3>
+  <table class="param-table">
+    <tr><th>常量名</th><th>类型</th><th>说明</th></tr>
+    <tr><td><code>BASE_COLOR</code></td><td><code>Object&lt;string,string&gt;</code></td><td>碱基→十六进制颜色映射，被所有渲染函数调用</td></tr>
+    <tr><td><code>COMPLEMENT</code></td><td><code>Object&lt;string,string&gt;</code></td><td>Watson-Crick 互补碱基映射（A↔T, C↔G）</td></tr>
+    <tr><td><code>REF</code></td><td><code>string</code></td><td>39bp 模拟参考基因组序列</td></tr>
+    <tr><td><code>SNP_POS</code></td><td><code>number</code></td><td>SNP 位点（0-based 索引 = 24）</td></tr>
+    <tr><td><code>SNP_REF</code></td><td><code>string</code></td><td>参考等位基因 <code>'G'</code></td></tr>
+    <tr><td><code>SNP_ALT</code></td><td><code>string</code></td><td>变异等位基因 <code>'A'</code></td></tr>
+    <tr><td><code>READS</code></td><td><code>Array&lt;ReadObj&gt;</code></td><td>9条测序读段对象数组</td></tr>
+    <tr><td><code>SBS_TEMPLATE</code></td><td><code>string</code></td><td>步骤3 SBS 演示用模板（REF前12bp）</td></tr>
+    <tr><td><code>SBS_GROWING</code></td><td><code>string[]</code></td><td>SBS 合成链碱基序列（互补链）</td></tr>
+    <tr><td><code>SIGNAL_DATA</code></td><td><code>Array&lt;{base,signals}&gt;</code></td><td>步骤4 模拟荧光强度数据（8个循环）</td></tr>
+  </table>
+
+  <h3 class="sub-title" id="algo-genqual">算法：genQual — 伪随机质量分生成</h3>
+  <pre><code><span class="kw">function</span> <span class="fn">genQual</span>(<span class="var">readId</span>, <span class="var">pos</span>) {
+  <span class="kw">const</span> <span class="var">v</span> = (<span class="var">readId</span> * <span class="num">17</span> + <span class="var">pos</span> * <span class="num">31</span> + <span class="num">7</span>) % <span class="num">23</span>;
+  <span class="kw">return</span> <span class="num">18</span> + <span class="var">v</span>;   <span class="cmt">// 返回 Q18 ~ Q40</span>
+}</code></pre>
+  <p><strong>目的</strong>：生成视觉上有变化但可复现的质量分数，避免每次刷新随机值导致画面抖动。</p>
+  <p><strong>原理</strong>：线性同余公式 <code>(readId×17 + pos×31 + 7) % 23</code> 以 readId 和碱基位置 pos 为种子，产生 0~22 的确定性伪随机数，加上基础值 18 得到 Q18~Q40 的 Phred 分数范围。选用质数 17、31 是为了减少同余值的规律性重复。</p>
+
+  <h3 class="sub-title" id="algo-makeread">算法：makeRead — 读段对象构造</h3>
+  <pre><code><span class="kw">function</span> <span class="fn">makeRead</span>(<span class="var">id</span>, <span class="var">start</span>, <span class="var">len</span>, <span class="var">muts</span> = []) {
+  <span class="cmt">// 1. 从参考序列切片</span>
+  <span class="kw">const</span> <span class="var">bases</span> = REF.<span class="fn">slice</span>(<span class="var">start</span>, <span class="var">start</span> + <span class="var">len</span>).<span class="fn">split</span>(<span class="str">''</span>);
+
+  <span class="cmt">// 2. 注入指定的突变/错误（相对位置）</span>
+  <span class="var">muts</span>.<span class="fn">forEach</span>(([<span class="var">relPos</span>, <span class="var">alt</span>]) =&gt; { <span class="var">bases</span>[<span class="var">relPos</span>] = <span class="var">alt</span>; });
+
+  <span class="cmt">// 3. 生成每个位置的质量分数</span>
+  <span class="kw">const</span> <span class="var">seq</span>  = <span class="var">bases</span>.<span class="fn">join</span>(<span class="str">''</span>);
+  <span class="kw">const</span> <span class="var">qual</span> = <span class="var">bases</span>.<span class="fn">map</span>((<span class="var">_</span>, <span class="var">i</span>) =&gt; <span class="fn">genQual</span>(<span class="var">id</span>, <span class="var">i</span>));
+
+  <span class="kw">return</span> { <span class="var">id</span>, <span class="var">start</span>, <span class="var">seq</span>, <span class="var">qual</span>, <span class="var">len</span>: <span class="var">seq</span>.length, <span class="var">muts</span> };
+}</code></pre>
+  <p><strong>muts 参数格式</strong>：<code>[ [relPos, altBase], ... ]</code>，<code>relPos</code> 是相对于 read 起始位置的偏移量。</p>
+  <p><strong>SNP 注入逻辑</strong>：对于覆盖位置 24（SNP_POS）的 reads，将该位置的绝对坐标减去 start 得到相对位置，再将对应碱基改为 <code>SNP_ALT ('A')</code>：</p>
+  <pre><code><span class="cmt">// 例：Read 6，start=19，SNP全局位置24，相对位置 = 24-19 = 5</span>
+makeRead(<span class="num">6</span>, <span class="num">19</span>, <span class="num">15</span>, [[SNP_POS-<span class="num">19</span>, SNP_ALT]])
+<span class="cmt">//                      ↑ = [5, 'A'] → 第6个碱基 G→A</span></code></pre>
+
+  <h3 class="sub-title" id="algo-data-gen">SIGNAL_DATA 生成逻辑</h3>
+  <pre><code><span class="kw">const</span> <span class="var">SIGNAL_DATA</span> = SBS_GROWING.<span class="fn">slice</span>(<span class="num">0</span>, <span class="num">8</span>).<span class="fn">map</span>((<span class="var">base</span>, <span class="var">pos</span>) =&gt; {
+  <span class="kw">const</span> <span class="var">noise</span> = (<span class="var">pos</span> * <span class="num">7</span> + <span class="num">3</span>) % <span class="num">15</span>;
+  <span class="kw">const</span> <span class="var">s</span> = {
+    A: <span class="num">5</span> + <span class="var">noise</span> % <span class="num">8</span>,        <span class="cmt">// 背景噪声：5~12</span>
+    T: <span class="num">5</span> + (<span class="var">noise</span>+<span class="num">3</span>) % <span class="num">8</span>,
+    C: <span class="num">5</span> + (<span class="var">noise</span>+<span class="num">5</span>) % <span class="num">8</span>,
+    G: <span class="num">5</span> + (<span class="var">noise</span>+<span class="num">2</span>) % <span class="num">8</span>,
+  };
+  s[<span class="var">base</span>] = <span class="num">85</span> + (<span class="var">pos</span> * <span class="num">3</span>) % <span class="num">12</span>;  <span class="cmt">// 正确碱基信号：85~96（远高于背景）</span>
+  <span class="kw">return</span> { <span class="var">base</span>, <span class="var">signals</span>: <span class="var">s</span> };
+});</code></pre>
+  <p>模拟 Illumina 荧光检测的信噪比特征：正确碱基信号强度约为背景的 <strong>8~12 倍</strong>，这是实际测序中 Q30 以上碱基的典型信噪比水平。</p>
+</section>
+
+<!-- ================================================
+     七、文件说明：app.js
+     ================================================ -->
+<section id="file-app">
+  <h2 class="sec-title"><span class="sec-icon">⚙️</span>文件：js/app.js</h2>
+  <div class="file-card">
+    <div class="file-card-header">
+      <span class="file-tag">js/app.js</span>
+      <span class="ver-tag">ES2020</span>
+      <span class="file-size">1,049 行 · 47 KB</span>
+    </div>
+    <p>项目主程序，包含 SVG 渲染引擎、6个步骤的渲染函数、动画控制器和导航系统。</p>
+  </div>
+
+  <h3 class="sub-title">代码组织（按行号）</h3>
+  <table class="param-table">
+    <tr><th>行范围</th><th>模块</th><th>内容</th></tr>
+    <tr><td>1 – 47</td><td>SVG 工具函数</td><td>R/T/L/C/P/G/anim + drawBase + drawSeq + qChar</td></tr>
+    <tr><td>48 – 337</td><td>STEPS 数组定义</td><td>6个步骤的元数据（title/desc/substepLabels/theory/render引用）</td></tr>
+    <tr><td>338 – 499</td><td>renderStep1</td><td>DNA片段化（4帧）</td></tr>
+    <tr><td>500 – 605</td><td>renderStep2</td><td>文库构建（4帧）</td></tr>
+    <tr><td>606 – 700</td><td>renderStep3</td><td>SBS测序（6帧）</td></tr>
+    <tr><td>701 – 800</td><td>renderStep4</td><td>碱基识别与质控（4帧）</td></tr>
+    <tr><td>801 – 886</td><td>renderStep5</td><td>序列比对（5帧）</td></tr>
+    <tr><td>887 – 980</td><td>renderStep6</td><td>变异识别（4帧）</td></tr>
+    <tr><td>981 – 1000</td><td>应用状态变量</td><td>curStep/curSub/isPlaying/playTimer</td></tr>
+    <tr><td>1001 – 1031</td><td>UI更新函数</td><td>updateStepNav / updateSubstepDots / render / updateButtons</td></tr>
+    <tr><td>1032 – 1049</td><td>初始化+事件绑定</td><td>DOMContentLoaded + 键盘快捷键</td></tr>
+  </table>
+</section>
+
+<!-- ================================================
+     八、核心算法：SVG 渲染引擎
+     ================================================ -->
+<section id="algo-svg">
+  <h2 class="sec-title"><span class="sec-icon">🖼️</span>核心算法：SVG 渲染引擎</h2>
+  <p>所有图形通过字符串拼接生成 SVG 标记，写入 <code>&lt;svg&gt;</code> 的 <code>innerHTML</code>。引擎由 7 个基础原语函数 + 2 个高阶函数组成。</p>
+
+  <h3 class="sub-title" id="algo-svg-primitives">基础原语函数</h3>
+
+  <h4 class="fn-title">R(x, y, w, h, fill, rx=0, extra='') → string</h4>
+  <div class="fn-sig">
+    <div class="fn-sig-head">生成 &lt;rect&gt; SVG 矩形元素</div>
+    <div class="fn-sig-body">R(<span class="num">100</span>, <span class="num">50</span>, <span class="num">80</span>, <span class="num">20</span>, <span class="str">'#3fb950'</span>, <span class="num">4</span>)<br>
+→ <span class="str">'&lt;rect x="100" y="50" width="80" height="20" fill="#3fb950" rx="4" /&gt;'</span></div>
+  </div>
+  <table class="param-table">
+    <tr><th>参数</th><th>类型</th><th>说明</th></tr>
+    <tr><td>x, y</td><td>number</td><td>左上角坐标（SVG 坐标系）</td></tr>
+    <tr><td>w, h</td><td>number</td><td>宽高（像素，基于 viewBox）</td></tr>
+    <tr><td>fill</td><td>string</td><td>填充色（十六进制或 rgba）</td></tr>
+    <tr><td>rx</td><td>number</td><td>圆角半径，默认 0</td></tr>
+    <tr><td>extra</td><td>string</td><td>附加 SVG 属性，如 <code>'stroke="#fff"'</code></td></tr>
+  </table>
+
+  <h4 class="fn-title">T(x, y, s, fill, size, anchor, weight, family, extra) → string</h4>
+  <div class="fn-sig">
+    <div class="fn-sig-head">生成 &lt;text&gt; SVG 文本元素</div>
+    <div class="fn-sig-body">T(<span class="num">400</span>, <span class="num">30</span>, <span class="str">'Hello'</span>, <span class="str">'#fff'</span>, <span class="num">14</span>, <span class="str">'middle'</span>, <span class="str">'bold'</span>)<br>
+→ <span class="str">'&lt;text x="400" y="30" fill="#fff" font-size="14" text-anchor="middle" ...&gt;Hello&lt;/text&gt;'</span></div>
+  </div>
+  <p><strong>text-anchor</strong> 控制水平对齐：<code>'start'</code>（左对齐）、<code>'middle'</code>（居中）、<code>'end'</code>（右对齐）。注意 SVG 文本 y 坐标是<strong>基线（baseline）</strong>位置，而非顶部，因此文本居中需要 <code>y + fontSize/2</code> 的视觉补偿。</p>
+
+  <h4 class="fn-title">L(x1,y1,x2,y2, stroke, w, extra) → string</h4>
+  <p>生成 <code>&lt;line&gt;</code>。常用 <code>extra='stroke-dasharray="4,3"'</code> 绘制虚线（用于断点标记、连接线等）。</p>
+
+  <h4 class="fn-title">C / P / G / anim</h4>
+  <table class="param-table">
+    <tr><th>函数</th><th>生成元素</th><th>典型用途</th></tr>
+    <tr><td><code>C(cx,cy,r,fill)</code></td><td><code>&lt;circle&gt;</code></td><td>核苷酸粒子、进度圆点</td></tr>
+    <tr><td><code>P(d,fill,stroke,w)</code></td><td><code>&lt;path&gt;</code></td><td>超声波波纹曲线</td></tr>
+    <tr><td><code>G(id,content,transform)</code></td><td><code>&lt;g&gt;</code></td><td>元素分组（便于整体变换）</td></tr>
+    <tr><td><code>anim(id,attr,from,to,dur)</code></td><td><code>&lt;animate&gt;</code></td><td>SVG SMIL 动画（当前未启用）</td></tr>
+  </table>
+
+  <h3 class="sub-title" id="algo-drawbase">高阶函数：drawBase / drawSeq</h3>
+
+  <h4 class="fn-title">drawBase(x, y, base, bw=17, bh=22, showLabel=true) → string</h4>
+  <pre><code><span class="kw">function</span> <span class="fn">drawBase</span>(<span class="var">x</span>, <span class="var">y</span>, <span class="var">base</span>, <span class="var">bw</span>=<span class="num">17</span>, <span class="var">bh</span>=<span class="num">22</span>, <span class="var">showLabel</span>=<span class="kw">true</span>) {
+  <span class="kw">const</span> <span class="var">c</span> = BASE_COLOR[<span class="var">base</span>] || <span class="str">'#555'</span>;   <span class="cmt">// 未知碱基降级为灰色</span>
+  <span class="kw">let</span> <span class="var">out</span> = <span class="fn">R</span>(<span class="var">x</span>, <span class="var">y</span>, <span class="var">bw</span>-<span class="num">1</span>, <span class="var">bh</span>, <span class="var">c</span>, <span class="num">2</span>);         <span class="cmt">// 宽度 -1 制造间距</span>
+
+  <span class="kw">if</span> (<span class="var">showLabel</span>) {
+    <span class="cmt">// 字号根据方块高度自适应</span>
+    <span class="kw">const</span> <span class="var">fs</span> = <span class="var">bh</span> &lt; <span class="num">18</span> ? <span class="num">8</span> : (<span class="var">bh</span> &lt; <span class="num">24</span> ? <span class="num">10</span> : <span class="num">12</span>);
+    <span class="cmt">// 文字在方块中垂直居中（baseline补偿 = fs/2 - 1）</span>
+    <span class="var">out</span> += <span class="fn">T</span>(<span class="var">x</span>+<span class="var">bw</span>/<span class="num">2</span>-<span class="num">0.5</span>, <span class="var">y</span>+<span class="var">bh</span>/<span class="num">2</span>+<span class="var">fs</span>/<span class="num">2</span>-<span class="num">1</span>, <span class="var">base</span>, <span class="str">'#fff'</span>, <span class="var">fs</span>, <span class="str">'middle'</span>, <span class="str">'bold'</span>);
+  }
+  <span class="kw">return</span> <span class="var">out</span>;
+}</code></pre>
+  <p><strong>字号自适应</strong>：方块高度 bh &lt; 18 → 字号 8；18 ≤ bh &lt; 24 → 字号 10；bh ≥ 24 → 字号 12。这使同一函数可用于小型 pileup 视图（bh=16）和大型演示视图（bh=30）。</p>
+
+  <h4 class="fn-title">drawSeq(x, y, seq, bw, bh, showLabels) → string</h4>
+  <p>对序列字符串逐字符调用 <code>drawBase</code>，以 <code>i*bw</code> 的横向偏移排列，是一个纯粹的 map+join 操作。</p>
+
+  <h4 class="fn-title">qChar(q) → string</h4>
+  <pre><code><span class="kw">function</span> <span class="fn">qChar</span>(<span class="var">q</span>) { <span class="kw">return</span> <span class="fn">String.fromCharCode</span>(<span class="var">q</span> + <span class="num">33</span>); }</code></pre>
+  <p>实现 FASTQ Phred33 编码规范：<code>Q值 + 33 = ASCII码</code>。例如 Q30 → ASCII 63 → 字符 <code>'?'</code>；Q40 → ASCII 73 → 字符 <code>'I'</code>。</p>
+</section>
+
+<!-- ================================================
+     九、各步骤渲染算法
+     ================================================ -->
+<section id="algo-step1">
+  <h2 class="sec-title"><span class="sec-icon">1️⃣</span>渲染算法：步骤1 DNA片段化</h2>
+  <p>函数签名：<code>renderStep1(substep: 0|1|2|3) → string</code></p>
+
+  <h3 class="sub-title">坐标系设计</h3>
+  <pre><code><span class="cmt">// viewBox: 800×380，DNA居中绘制</span>
+<span class="kw">const</span> bpW = <span class="num">15</span>;                        <span class="cmt">// 每个碱基方块宽度</span>
+<span class="kw">const</span> totalW = REF.length * bpW;       <span class="cmt">// 总宽度 = 39×15 = 585px</span>
+<span class="kw">const</span> sx = (W - totalW) / <span class="num">2</span>;          <span class="cmt">// 水平居中起点 ≈ 107.5</span>
+<span class="kw">const</span> topY = H/<span class="num">2</span> - bpH - sGap;        <span class="cmt">// 正链 Y 坐标</span>
+<span class="kw">const</span> botY = H/<span class="num">2</span> + sGap;              <span class="cmt">// 互补链 Y 坐标</span></code></pre>
+
+  <h3 class="sub-title">各帧逻辑</h3>
+  <table class="param-table">
+    <tr><th>substep</th><th>内容</th><th>关键技术</th></tr>
+    <tr><td>0</td><td>完整双链DNA，显示5'→3'方向标注</td><td>双 for 循环绘制正链+互补链，<code>COMPLEMENT</code> 对象计算互补碱基</td></tr>
+    <tr><td>1</td><td>超声波 + 切割标记</td><td>SVG <code>&lt;path&gt;</code> 三次贝塞尔曲线模拟波浪；三角形箭头用 <code>&lt;polygon&gt;</code> 内联字符串</td></tr>
+    <tr><td>2</td><td>DNA 断裂，片段有垂直位移</td><td><code>fragDy=[-8,-3,3,8]</code> 数组给4个片段不同的 dy 偏移，模拟散开效果</td></tr>
+    <tr><td>3</td><td>4个独立片段横向排列，含坐标信息</td><td>固定 Y 坐标数组 <code>fragY=[70,140,210,280]</code>，每个片段一行</td></tr>
+  </table>
+
+  <div class="info-box">
+    <strong>片段划分</strong>：硬编码为 4 个片段 <code>[[0,9],[10,19],[20,28],[29,38]]</code>，分别约 10 bp，教学上简化了随机片段化的统计特性（实际产生的是正态分布的片段大小）。
+  </div>
+</section>
+
+<section id="algo-step2">
+  <h2 class="sec-title"><span class="sec-icon">2️⃣</span>渲染算法：步骤2 文库构建</h2>
+  <p>函数签名：<code>renderStep2(substep: 0|1|2|3) → string</code></p>
+  <p>以参考序列前10bp（<code>REF.slice(0,10)</code>）为演示片段。互补链由 <code>COMPLEMENT</code> 映射计算。</p>
+
+  <table class="param-table">
+    <tr><th>substep</th><th>内容</th><th>关键技术</th></tr>
+    <tr><td>0</td><td>原始片段双链 + 粗糙末端标注</td><td>标注"粗糙末端"警告，说明超声剪切的末端不整齐</td></tr>
+    <tr><td>1</td><td>T4聚合酶框出现在两侧末端</td><td>半透明矩形 + 标签模拟酶分子；<code>rgba(56,139,253,0.2)</code> 表示酶</td></tr>
+    <tr><td>2</td><td>A尾在正链3'末端和负链3'末端出现</td><td>在片段两侧各绘制一个额外的 A 碱基块，颜色高亮，带方向标注</td></tr>
+    <tr><td>3</td><td>P5/P7 接头连接，展示完整文库片段结构</td><td>两种颜色区分 P5（紫）和 P7（蓝）接头；主体片段居中，接头在左右两侧</td></tr>
+  </table>
+</section>
+
+<section id="algo-step3">
+  <h2 class="sec-title"><span class="sec-icon">3️⃣</span>渲染算法：步骤3 SBS测序</h2>
+  <p>函数签名：<code>renderStep3(substep: 0|1|2|3|4|5) → string</code></p>
+
+  <h3 class="sub-title">已合成碱基数量计算</h3>
+  <pre><code><span class="kw">const</span> numCycles = substep === <span class="num">0</span>
+  ? <span class="num">0</span>
+  : Math.<span class="fn">min</span>(substep * <span class="num">2</span>, <span class="num">8</span>);
+<span class="cmt">// substep 1 → 2个循环
+// substep 2 → 4个循环
+// substep 3 → 6个循环
+// substep 4 → 8个循环（上限）
+// substep 5 → 8个循环（显示完整结果）</span></code></pre>
+  <p>每个 substep 增加 2 个循环，使动画节奏适中（5帧展示8个碱基的合成过程）。</p>
+
+  <h3 class="sub-title">模板与合成链关系</h3>
+  <pre><code>模板链（5'→3'）: A  T  C  G  A  A  C  G  T  T  A  C
+互补链（3'→5'）: T  A  G  C  T  T  G  C  A  A  T  G
+                 ↑每次掺入互补碱基，从左到右逐步显示</code></pre>
+
+  <h3 class="sub-title">聚合酶位置逻辑</h3>
+  <p>聚合酶（🧬 图标 + 半透明矩形）始终显示在合成链当前末端的下一个位置：<code>px = startX + numCycles * bpW</code>，当 <code>numCycles === 8</code> 时隐藏（合成完毕）。</p>
+
+  <h3 class="sub-title">信号条形图</h3>
+  <p>在合成链下方绘制已完成循环的信号条：每个位置取 <code>SBS_GROWING[i]</code> 对应的颜色，绘制一个高 24px 的彩色矩形，直观表示"相机检测到的颜色→碱基"的对应关系。</p>
+</section>
+
+<section id="algo-step4">
+  <h2 class="sec-title"><span class="sec-icon">4️⃣</span>渲染算法：步骤4 碱基识别与质控</h2>
+  <p>函数签名：<code>renderStep4(substep: 0|1|2|3) → string</code></p>
+
+  <table class="param-table">
+    <tr><th>substep</th><th>关键渲染逻辑</th></tr>
+    <tr>
+      <td>0 · 荧光信号</td>
+      <td>对每个位置（8个），并排绘制4根颜色柱（A/T/C/G），高度 = <code>signals[base] / 100 × barMaxH</code>。所有4色同时显示，模拟实际荧光成像的多通道数据。</td>
+    </tr>
+    <tr>
+      <td>1 · 碱基识别</td>
+      <td>重绘信号柱，正确碱基的柱不透明（<code>opacity=1</code>），其余3柱加 <code>'55'</code> 透明度后缀变暗；在每个位置下方额外绘制识别到的碱基方块，并用虚线箭头连接"信号→碱基"。</td>
+    </tr>
+    <tr>
+      <td>2 · Q值计算</td>
+      <td>绘制上方碱基行 + 下方Q值柱状图。柱高 = <code>Q / 40 × qbarMaxH</code>。颜色按阈值分级：Q≥30绿色、Q20~30黄色、Q&lt;20红色，直观反映质量分布。</td>
+    </tr>
+    <tr>
+      <td>3 · FASTQ格式</td>
+      <td>静态文本展示4行FASTQ记录，用不同颜色区分各行，附右侧字段说明。质量字符通过 <code>qChar()</code> 函数从Q值转换为ASCII字符。</td>
+    </tr>
+  </table>
+</section>
+
+<section id="algo-step5">
+  <h2 class="sec-title"><span class="sec-icon">5️⃣</span>渲染算法：步骤5 序列比对</h2>
+  <p>函数签名：<code>renderStep5(substep: 0|1|2|3|4) → string</code></p>
+
+  <h3 class="sub-title">可见reads计算</h3>
+  <pre><code><span class="kw">const</span> visibleReads =
+  substep === <span class="num">0</span> ? <span class="num">0</span> :
+  substep === <span class="num">1</span> ? <span class="num">3</span> :
+  substep === <span class="num">2</span> ? <span class="num">6</span> : <span class="num">9</span>;   <span class="cmt">// substep 3和4都显示全部9条</span></code></pre>
+  <p>每帧递增显示 3 条 reads，模拟比对算法逐步将 reads 定位到参考上的过程。</p>
+
+  <h3 class="sub-title">错配检测与高亮</h3>
+  <pre><code><span class="kw">for</span> (<span class="kw">let</span> j = <span class="num">0</span>; j &lt; read.len; j++) {
+  <span class="kw">const</span> globalPos = read.start + j;
+  <span class="kw">const</span> base      = read.seq[j];
+  <span class="kw">const</span> refBase   = REF[globalPos];
+  <span class="kw">const</span> isMismatch = (base !== refBase);
+
+  <span class="cmt">// 错配碱基：降低透明度 + 红色边框</span>
+  <span class="fn">R</span>(x, ry2, bpW-<span class="num">1</span>, bpH, BASE_COLOR[base] + (isMismatch ? <span class="str">''</span> : <span class="str">'77'</span>), <span class="num">2</span>,
+    isMismatch ? <span class="str">'stroke="#f85149" stroke-width="1.2"'</span> : <span class="str">''</span>);
+}</code></pre>
+  <p>正常碱基颜色加 <code>'77'</code> 十六进制透明度（约47%）降低视觉权重，错配碱基保持全色并添加红色边框，引导注意力。</p>
+
+  <h3 class="sub-title">SNP 位置高亮（substep 4）</h3>
+  <p>在 substep 4 额外绘制一个纵向半透明矩形覆盖 SNP 列（从参考序列到所有 reads），颜色为 <code>rgba(248,81,73,0.08)</code>（极低透明度红色），配合虚线边框形成视觉焦点，并在底部显示等位基因统计数。</p>
+</section>
+
+<section id="algo-step6">
+  <h2 class="sec-title"><span class="sec-icon">6️⃣</span>渲染算法：步骤6 变异识别</h2>
+  <p>函数签名：<code>renderStep6(substep: 0|1|2|3) → string</code></p>
+
+  <h3 class="sub-title">SNP 位点数据汇总（所有帧共用）</h3>
+  <pre><code><span class="kw">const</span> snpBases = [];
+READS.<span class="fn">forEach</span>(<span class="var">r</span> =&gt; {
+  <span class="cmt">// 判断 read 是否覆盖 SNP 位置</span>
+  <span class="kw">if</span> (<span class="var">r</span>.start &lt;= SNP_POS &amp;&amp; SNP_POS &lt; <span class="var">r</span>.start + <span class="var">r</span>.len) {
+    snpBases.<span class="fn">push</span>({
+      readId: <span class="var">r</span>.id,
+      base:   <span class="var">r</span>.seq[SNP_POS - <span class="var">r</span>.start]  <span class="cmt">// 绝对坐标 → 相对坐标</span>
+    });
+  }
+});
+<span class="cmt">// 结果：5条reads覆盖，其中G=2，A=3</span></code></pre>
+
+  <table class="param-table">
+    <tr><th>substep</th><th>关键逻辑</th></tr>
+    <tr>
+      <td>0 · 聚焦Pileup</td>
+      <td>以 SNP_POS 为中心，显示前后各5个碱基的上下文序列（参考序列）；SNP位置用白色 2px 边框高亮。覆盖该位点的5条reads竖向堆叠显示，错配碱基红色高亮。</td>
+    </tr>
+    <tr>
+      <td>1 · 碱基计数</td>
+      <td>在左侧显示各read的碱基，右侧绘制G/A的等高柱状图；柱高 = <code>count/total × 120px</code>；底部显示变异频率（VAF）= <code>aCount/total</code>，格式化为百分比。</td>
+    </tr>
+    <tr>
+      <td>2 · 贝叶斯模型</td>
+      <td>三种基因型（0/0, 0/1, 1/1）的后验概率以固定值硬编码演示（0.05, 0.92, 0.03）；概率值映射为横向条形图宽度（width = prob × 400px），让学习者直观感受贝叶斯输出。</td>
+    </tr>
+    <tr>
+      <td>3 · VCF输出</td>
+      <td>静态渲染4行VCF记录（含header行），数据行用绿色高亮；最后的总结框用 <code>rgba(63,185,80,0.08)</code> 绿色背景 + 边框表示"通过"。</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ================================================
+     十、动画状态机
+     ================================================ -->
+<section id="algo-anim">
+  <h2 class="sec-title"><span class="sec-icon">▶️</span>核心算法：动画状态机</h2>
+  <p>播放系统是一个基于 <code>setTimeout</code> 递归调用的简单状态机：</p>
+
+  <pre><code><span class="kw">function</span> <span class="fn">advanceFrame</span>() {
+  <span class="kw">if</span> (!isPlaying) <span class="kw">return</span>;              <span class="cmt">// 守卫：已暂停则退出</span>
+
+  <span class="kw">const</span> maxSub = STEPS[curStep].substepLabels.length - <span class="num">1</span>;
+
+  <span class="kw">if</span> (curSub &lt; maxSub) {
+    <span class="cmt">// 同一步骤内前进一帧</span>
+    curSub++;
+    <span class="fn">render</span>();
+    playTimer = <span class="fn">setTimeout</span>(advanceFrame, PLAY_INTERVAL);  <span class="cmt">// 2200ms后继续</span>
+
+  } <span class="kw">else if</span> (curStep &lt; STEPS.length - <span class="num">1</span>) {
+    <span class="cmt">// 当前步骤最后一帧 → 跳到下一步骤第一帧</span>
+    curStep++; curSub = <span class="num">0</span>;
+    <span class="fn">render</span>();
+    playTimer = <span class="fn">setTimeout</span>(advanceFrame, PLAY_INTERVAL);
+
+  } <span class="kw">else</span> {
+    <span class="cmt">// 所有步骤全部播放完毕 → 自然停止</span>
+    <span class="fn">pausePlay</span>();
+  }
+}</code></pre>
+
+  <h3 class="sub-title">pausePlay 的重要性</h3>
+  <pre><code><span class="kw">function</span> <span class="fn">pausePlay</span>() {
+  isPlaying = <span class="kw">false</span>;
+  <span class="fn">clearTimeout</span>(playTimer);   <span class="cmt">// ← 关键：取消待执行的回调</span>
+  <span class="fn">updateButtons</span>();
+}</code></pre>
+  <div class="warn-box">
+    如果不调用 <code>clearTimeout</code>，即使 <code>isPlaying=false</code>，已排队的回调仍会在 2200ms 后触发一次，导致在手动操作后出现意外跳帧。因此所有导航函数（<code>prevStep</code>、<code>nextStep</code>、<code>subPrev</code>、<code>subNext</code>、<code>goToStep</code>）都首先调用 <code>pausePlay()</code>。
+  </div>
+</section>
+
+<!-- ================================================
+     十一、导航系统
+     ================================================ -->
+<section id="algo-nav">
+  <h2 class="sec-title"><span class="sec-icon">🗺️</span>核心算法：导航系统</h2>
+
+  <h3 class="sub-title">步骤间导航与跨步骤子帧导航</h3>
+  <p>导航系统实现了连续的线性遍历——<code>subNext()</code> 在当前步骤的最后一帧时，会自动跳到下一步骤的第一帧，形成流畅的全流程浏览体验：</p>
+  <pre><code><span class="kw">function</span> <span class="fn">subNext</span>() {
+  <span class="fn">pausePlay</span>();
+  <span class="kw">const</span> maxSub = STEPS[curStep].substepLabels.length - <span class="num">1</span>;
+
+  <span class="kw">if</span> (curSub &lt; maxSub) {
+    curSub++;                    <span class="cmt">// 步骤内前进</span>
+    <span class="fn">render</span>();
+  } <span class="kw">else if</span> (curStep &lt; STEPS.length - <span class="num">1</span>) {
+    curStep++; curSub = <span class="num">0</span>;       <span class="cmt">// 跨步骤前进</span>
+    <span class="fn">render</span>();
+  }
+  <span class="cmt">// 否则：已在最后一帧，不操作</span>
+}</code></pre>
+
+  <h3 class="sub-title">步骤导航栏动态生成</h3>
+  <pre><code><span class="kw">function</span> <span class="fn">updateStepNav</span>() {
+  STEPS.<span class="fn">forEach</span>((<span class="var">s</span>, <span class="var">i</span>) =&gt; {
+    <span class="kw">const</span> div = document.<span class="fn">createElement</span>(<span class="str">'div'</span>);
+    <span class="cmt">// CSS类：active（当前）/ done（已完成）/ 无类（未访问）</span>
+    div.className = <span class="str">'step-item'</span> +
+      (i === curStep ? <span class="str">' active'</span> : i &lt; curStep ? <span class="str">' done'</span> : <span class="str">''</span>);
+    div.<span class="fn">addEventListener</span>(<span class="str">'click'</span>, () =&gt; <span class="fn">goToStep</span>(i));
+    inner.<span class="fn">appendChild</span>(div);
+  });
+}</code></pre>
+  <p>每次 <code>render()</code> 都重新生成导航栏（清空后重建），确保状态与 <code>curStep</code> 完全同步，无需维护复杂的差量更新逻辑。</p>
+
+  <h3 class="sub-title">键盘快捷键</h3>
+  <table class="param-table">
+    <tr><th>按键</th><th>动作</th><th>实现</th></tr>
+    <tr><td><kbd>→</kbd></td><td>前进一帧（可跨步骤）</td><td><code>subNext()</code></td></tr>
+    <tr><td><kbd>←</kbd></td><td>回退一帧（可跨步骤）</td><td><code>subPrev()</code></td></tr>
+    <tr><td><kbd>Space</kbd></td><td>播放/暂停切换</td><td><code>e.preventDefault() + togglePlay()</code></td></tr>
+  </table>
+  <p><code>e.preventDefault()</code> 阻止空格键滚动页面的默认行为。</p>
+</section>
+
+<!-- ================================================
+     十二、数据结构速查
+     ================================================ -->
+<section id="data-structures">
+  <h2 class="sec-title"><span class="sec-icon">📐</span>数据结构速查</h2>
+
+  <h3 class="sub-title">ReadObj（读段对象）</h3>
+  <div class="ds-box">
+{<br>
+&nbsp;&nbsp;<span class="ds-key">id</span>:    <span class="ds-type">number</span>,   <span class="ds-cmt">// 读段唯一ID，1~9</span><br>
+&nbsp;&nbsp;<span class="ds-key">start</span>: <span class="ds-type">number</span>,   <span class="ds-cmt">// 在参考基因组上的起始位置（0-based）</span><br>
+&nbsp;&nbsp;<span class="ds-key">seq</span>:   <span class="ds-type">string</span>,   <span class="ds-cmt">// 碱基序列字符串（可能含突变）</span><br>
+&nbsp;&nbsp;<span class="ds-key">qual</span>:  <span class="ds-type">number[]</span>, <span class="ds-cmt">// 每个碱基的 Phred Q 值，范围 18~40</span><br>
+&nbsp;&nbsp;<span class="ds-key">len</span>:   <span class="ds-type">number</span>,   <span class="ds-cmt">// 序列长度（= seq.length）</span><br>
+&nbsp;&nbsp;<span class="ds-key">muts</span>:  <span class="ds-type">[number,string][]</span> <span class="ds-cmt">// 突变列表，每项为 [相对位置, 替代碱基]</span><br>
+}
+  </div>
+
+  <h3 class="sub-title">StepObj（步骤配置对象）</h3>
+  <div class="ds-box">
+{<br>
+&nbsp;&nbsp;<span class="ds-key">title</span>:         <span class="ds-type">string</span>,          <span class="ds-cmt">// 步骤标题（显示在 #step-title）</span><br>
+&nbsp;&nbsp;<span class="ds-key">desc</span>:          <span class="ds-type">string</span>,          <span class="ds-cmt">// 步骤简介（显示在 #step-desc）</span><br>
+&nbsp;&nbsp;<span class="ds-key">substepLabels</span>: <span class="ds-type">string[]</span>,        <span class="ds-cmt">// 每一帧的文字说明，length决定帧数</span><br>
+&nbsp;&nbsp;<span class="ds-key">theory</span>:        <span class="ds-type">string</span>,          <span class="ds-cmt">// HTML字符串，注入 #theory-content</span><br>
+&nbsp;&nbsp;<span class="ds-key">render</span>:        <span class="ds-type">(substep) =&gt; string</span> <span class="ds-cmt">// 渲染函数，返回SVG内容字符串</span><br>
+}
+  </div>
+
+  <h3 class="sub-title">SignalDataObj（荧光信号对象）</h3>
+  <div class="ds-box">
+{<br>
+&nbsp;&nbsp;<span class="ds-key">base</span>:    <span class="ds-type">string</span>,             <span class="ds-cmt">// 正确碱基 ('T'|'A'|'G'|'C')</span><br>
+&nbsp;&nbsp;<span class="ds-key">signals</span>: {<br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="ds-key">A</span>: <span class="ds-type">number</span>,           <span class="ds-cmt">// A通道强度（5~96）</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="ds-key">T</span>: <span class="ds-type">number</span>,           <span class="ds-cmt">// T通道强度</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="ds-key">C</span>: <span class="ds-type">number</span>,           <span class="ds-cmt">// C通道强度</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="ds-key">G</span>: <span class="ds-type">number</span>            <span class="ds-cmt">// G通道强度（正确碱基为85~96）</span><br>
+&nbsp;&nbsp;}<br>
+}
+  </div>
+
+  <h3 class="sub-title">应用状态（全局变量）</h3>
+  <table class="param-table">
+    <tr><th>变量</th><th>类型</th><th>范围/说明</th></tr>
+    <tr><td><code>curStep</code></td><td>number</td><td>[0, 5]，对应 STEPS 数组索引</td></tr>
+    <tr><td><code>curSub</code></td><td>number</td><td>[0, STEPS[curStep].substepLabels.length-1]</td></tr>
+    <tr><td><code>isPlaying</code></td><td>boolean</td><td>true=自动播放中，false=暂停/手动</td></tr>
+    <tr><td><code>playTimer</code></td><td>number|null</td><td>setTimeout 返回的定时器 ID，null 表示无待执行回调</td></tr>
+  </table>
+</section>
+
+<!-- ================================================
+     十三、键盘快捷键
+     ================================================ -->
+<section id="keyboard">
+  <h2 class="sec-title"><span class="sec-icon">⌨️</span>键盘快捷键</h2>
+  <table class="param-table">
+    <tr><th>按键</th><th>功能</th><th>备注</th></tr>
+    <tr><td><kbd style="background:#1c2333;padding:2px 8px;border:1px solid #30363d;border-radius:4px">→</kbd></td><td>前进一帧</td><td>到步骤末尾时自动跳下一步骤</td></tr>
+    <tr><td><kbd style="background:#1c2333;padding:2px 8px;border:1px solid #30363d;border-radius:4px">←</kbd></td><td>回退一帧</td><td>到步骤开头时自动跳上一步骤末尾</td></tr>
+    <tr><td><kbd style="background:#1c2333;padding:2px 8px;border:1px solid #30363d;border-radius:4px">Space</kbd></td><td>播放/暂停</td><td><code>e.preventDefault()</code> 阻止页面滚动</td></tr>
+  </table>
+  <div class="info-box">
+    点击子帧进度圆点（底部的小圆点）也可以直接跳转到该步骤的任意帧，无需逐帧点击。
+  </div>
+</section>
+
+<!-- ================================================
+     十四、扩展指南
+     ================================================ -->
+<section id="extend">
+  <h2 class="sec-title"><span class="sec-icon">🔧</span>扩展指南</h2>
+
+  <h3 class="sub-title">新增一个可视化步骤</h3>
+  <p>只需在 <code>js/app.js</code> 的 <code>STEPS</code> 数组中追加一个配置对象：</p>
+  <pre><code><span class="cmt">// 在 STEPS 数组末尾添加：</span>
+{
+  title: <span class="str">'步骤 7：基因注释（Gene Annotation）'</span>,
+  desc:  <span class="str">'将识别到的变异与基因功能数据库比对'</span>,
+  substepLabels: [
+    <span class="str">'加载基因组注释数据库'</span>,
+    <span class="str">'变异位点落入基因区域'</span>,
+    <span class="str">'功能预测完成'</span>
+  ],
+  theory: <span class="str">`&lt;div class="tsec"&gt;&lt;h4&gt;...&lt;/h4&gt;&lt;p&gt;...&lt;/p&gt;&lt;/div&gt;`</span>,
+  render: <span class="fn">renderStep7</span>   <span class="cmt">// 新建对应渲染函数</span>
+}</code></pre>
+  <p>然后实现 <code>renderStep7(substep)</code> 函数，返回 SVG 字符串即可。无需修改任何其他代码，导航系统自动适配。</p>
+
+  <h3 class="sub-title">修改播放速度</h3>
+  <pre><code><span class="cmt">// app.js 顶部的常量：</span>
+<span class="kw">const</span> PLAY_INTERVAL = <span class="num">2200</span>;  <span class="cmt">// 改为 1000 可加快，3000 可放慢（单位ms）</span></code></pre>
+
+  <h3 class="sub-title">修改 Mock 数据</h3>
+  <div class="good-box">
+    所有数据集中在 <code>js/data.js</code> 中，修改 <code>REF</code> 字符串、<code>SNP_POS</code> 或 <code>makeRead()</code> 调用参数即可更换演示数据集，无需触碰渲染逻辑。
+  </div>
+
+  <h3 class="sub-title">添加连续动画</h3>
+  <p>当前系统使用离散帧模型，如需在两帧之间添加 CSS 过渡动画：</p>
+  <pre><code><span class="cmt">/* 在 style.css 中为 SVG 容器添加 */</span>
+<span class="fn">#vis-area svg</span> {
+  transition: opacity <span class="num">0.3s</span> ease;
+}
+<span class="cmt">/* 在 app.js render() 中触发：*/</span>
+svg.style.opacity = <span class="str">'0'</span>;
+<span class="fn">setTimeout</span>(() =&gt; {
+  svg.innerHTML = step.<span class="fn">render</span>(curSub);
+  svg.style.opacity = <span class="str">'1'</span>;
+}, <span class="num">150</span>);</code></pre>
+
+  <h3 class="sub-title">添加数据说明文档链接（本文档的集成方式）</h3>
+  <p>本文档通过在 <code>index.html</code> 的 header 区域添加 <code>&lt;a&gt;</code> 标签链接实现集成，无需任何路由框架：</p>
+  <pre><code><span class="cmt">&lt;!-- index.html header 内 --&gt;</span>
+&lt;<span class="kw">a</span> href=<span class="str">"docs.html"</span> class=<span class="str">"doc-btn"</span>&gt;📄 技术文档&lt;/<span class="kw">a</span>&gt;</code></pre>
+  <p><code>docs.html</code> 作为独立页面，不依赖 <code>app.js</code>，可独立访问和打印。</p>
+</section>
+
+<!-- 底部 -->
+<div style="margin-top:60px; padding-top:20px; border-top:1px solid #30363d; color:#555; font-size:12px; text-align:center;">
+  NGS 算法可视化 · 技术说明文档 &nbsp;|&nbsp; 版本 v1.0 &nbsp;|&nbsp;
+  <a href="index.html" style="color:#388bfd">← 返回可视化应用</a>
+</div>
+
+</main>
+</div>
+
+<script>
+// 侧边栏激活状态跟踪
+const navItems = document.querySelectorAll('.nav-item');
+const sections = document.querySelectorAll('section[id]');
+
+function updateActiveNav() {
+  let activeId = '';
+  sections.forEach(sec => {
+    const rect = sec.getBoundingClientRect();
+    if (rect.top <= 80) activeId = sec.id;
+  });
+  navItems.forEach(item => {
+    const href = item.getAttribute('href');
+    item.classList.toggle('active', href === '#' + activeId);
+  });
+}
+
+document.getElementById('content').addEventListener('scroll', updateActiveNav);
+window.addEventListener('scroll', updateActiveNav);
+updateActiveNav();
+</script>
+
+</body>
+</html>
