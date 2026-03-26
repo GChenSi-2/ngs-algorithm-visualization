@@ -27,6 +27,32 @@
     </div>
   </div>
 
+  <div id="cfg-bar">
+    <div class="cfg-inner">
+      <div class="cfg-field">
+        <span class="cfg-lbl">参考序列长度</span>
+        <input type="range" class="cfg-slider" id="sl-dna" min="30" max="70" value="40" step="5">
+        <span class="cfg-val" id="val-dna">40 bp</span>
+      </div>
+      <div class="cfg-field">
+        <span class="cfg-lbl">读段长度</span>
+        <input type="range" class="cfg-slider" id="sl-read" min="8" max="20" value="15" step="1">
+        <span class="cfg-val" id="val-read">15 bp</span>
+      </div>
+      <div class="cfg-field">
+        <span class="cfg-lbl">测序深度</span>
+        <input type="range" class="cfg-slider" id="sl-cov" min="3" max="12" value="5" step="1">
+        <span class="cfg-val" id="val-cov">5 ×</span>
+      </div>
+      <div class="cfg-field">
+        <span class="cfg-lbl">K-mer 大小</span>
+        <input type="range" class="cfg-slider" id="sl-kmer" min="3" max="7" value="5" step="1">
+        <span class="cfg-val" id="val-kmer">5</span>
+      </div>
+      <button id="btn-generate" class="cfg-gen-btn">🎲 重新生成</button>
+    </div>
+  </div>
+
   <div id="content">
 
     <div id="vis-panel">
