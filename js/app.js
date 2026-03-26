@@ -37,78 +37,60 @@ function drawSeq(x,y,seq,bw=17,bh=22,showLabels=true){
 
 // ── 步骤定义 STEPS ──────────────────────────────────────────
 
-const STEPS = [
-  {
-    title:'步骤 1：DNA 提取与片段化（Fragmentation）',
-    desc:'用超声波或酶将基因组DNA随机打断成短小片段',
-    substepLabels:['初始状态：基因组DNA（双链）','超声波破碎施加机械剪切力','DNA链在随机位点断裂','片段化完成！共4个片段'],
-    theory:`<div class="tsec"><h4>🔬 为什么要片段化？</h4><p>Illumina测序仪读长仅150~300 bp，基因组长达数十亿bp，必须先打碎。</p></div>
-<div class="tsec"><h4>⚙️ 主要方法</h4><p><strong>超声波剪切：</strong>Covaris仪器产生高频声波，通过流体力学剪切随机断裂DNA。</p><p><strong>酶切法：</strong>限制性内切酶在识别序列处切割，重复性好但有位置偏好。</p></div>
-<div class="hbox"><strong>目标片段大小：200–500 bp</strong><br>过短→信息量不足；过长→建库效率下降</div>
-<div class="tsec"><h4>📊 本演示</h4><p>使用 <strong>${()=>CFG.dnaLen} bp</strong> 随机生成参考序列，演示4片段打断逻辑。</p></div>`,
-    render: renderStep1
-  },
-  {
-    title:'步骤 2：文库构建（Library Construction）',
-    desc:'在DNA片段两端连接标准化接头序列（Adapter），使其能在测序仪上锚定和扩增',
-    substepLabels:['取出一个DNA片段','末端修复：将末端补成平末端','3\'末端加A尾（A-Tailing）','接头连接完成！文库构建成功'],
-    theory:`<div class="tsec"><h4>🔗 接头的作用</h4><p>接头（Adapter）是人工合成的短DNA序列，包含：P5/P7流动池锚定序列、测序引物位点、样本Index。</p></div>
-<div class="hbox">接头就像快递运单：无论内容物是什么，自动化系统都能识别处理。</div>
-<div class="tsec"><h4>📋 建库步骤</h4><p>1. <strong>末端修复</strong>：T4聚合酶补平末端</p><p>2. <strong>A尾添加</strong>：Taq聚合酶在3'末端各加一个A</p><p>3. <strong>接头连接</strong>：T4连接酶封闭切口</p></div>`,
-    render: renderStep2
-  },
-  {
-    title:'步骤 3：边合成边测序（Sequencing by Synthesis, SBS）',
-    desc:'每次掺入一个荧光标记核苷酸并拍照记录，逐碱基读取序列',
-    substepLabels:['文库片段固定，测序引物就位','第1~2循环：掺入互补碱基','第3~4循环：继续合成','第5~6循环：继续合成','第7~8循环：继续合成','8个循环完成！获得Read序列'],
-    theory:`<div class="tsec"><h4>💡 SBS核心原理</h4><p>每次只掺入<strong>一个</strong>可逆终止型荧光核苷酸，成像后切除保护基，再进行下一循环。</p></div>
-<div class="tsec"><h4>🔄 单个循环</h4><p>① 泵入4种荧光dNTP → ② 聚合酶掺入1个碱基 → ③ 冲洗 → ④ 激光激发荧光拍照 → ⑤ 切除3'保护基</p></div>
-<div class="hbox"><span class="btag bA">A</span>绿 &nbsp;<span class="btag bT">T</span>红 &nbsp;<span class="btag bC">C</span>蓝 &nbsp;<span class="btag bG">G</span>黄</div>`,
-    render: renderStep3
-  },
-  {
-    title:'步骤 4：碱基识别与质量控制（Base Calling & QC）',
-    desc:'分析荧光信号强度，识别碱基，用Phred质量分数评估可信度，输出FASTQ文件',
-    substepLabels:['原始荧光强度信号（4通道）','碱基识别：选取最高强度通道','计算Phred质量分数（Q值）','输出FASTQ格式文件'],
-    theory:`<div class="tsec"><h4>📊 Phred质量分数</h4><p>Q值量化碱基识别错误概率：</p><div class="code-box">Q = -10 × log₁₀(P_error)</div></div>
-<div class="tsec"><h4>质量分级</h4><p>Q10→错误率10%（较差）&nbsp;|&nbsp; Q20→1%（合格）&nbsp;|&nbsp; Q30→0.1%（优良）✓</p></div>
-<div class="tsec"><h4>📄 FASTQ格式</h4><div class="code-box">@Read_001
-TAGCTTGCAA
-+
-IIHFIIGIIH</div><p style="font-size:11px">第4行ASCII字符减33即为Q值</p></div>`,
-    render: renderStep4
-  },
-  {
-    title:'步骤 5：序列比对（Read Alignment）',
-    desc:'用K-mer种子投票 + Smith-Waterman评分将每条Read定位到参考基因组，构建Pileup图',
-    substepLabels:[
-      '① 构建K-mer索引：扫描参考序列，建立位置哈希表',
-      '② 种子提取：从Read 1抽取K-mer，查询索引中的命中位置',
-      '③ 位置投票：每个种子命中为候选起始位置投票',
-      '④ 比对验证：对最优候选位置计算Smith-Waterman得分',
-      '⑤ 逐步比对：前半条Reads依次定位到参考序列',
-      '⑥ 完整Pileup：全部Reads比对完成，显示覆盖深度'
-    ],
-    theory:`<div class="tsec"><h4>🎯 种子投票策略（Seed-and-Vote）</h4><p>这是BWA/Bowtie2的核心思路的简化版，分4个阶段：</p>
-<p>① <strong>索引构建</strong>：扫描参考序列，所有k-mer及其位置存入哈希表 O(|REF|)</p>
-<p>② <strong>种子提取</strong>：从Read按步长取k-mer，在索引中瞬间查到候选位置</p>
-<p>③ <strong>位置投票</strong>：每个命中的种子为其"隐含起始位置"（refPos-readOffset）投票</p>
-<p>④ <strong>精确验证</strong>：对票数最高的候选，用简化Smith-Waterman逐碱基打分确认</p></div>
-<div class="hbox"><strong>K-mer大小 k=${()=>CFG.kmerK}</strong><br>k越大→特异性高，漏比对多<br>k越小→命中多，假阳性多</div>
-<div class="tsec"><h4>🔴 错配高亮</h4><p>红色边框=碱基与参考不一致（SNP或测序错误）</p><p>SNP位点（位置${()=>SNP_POS+1}）在Pileup中以红色列高亮</p></div>
-<div class="tsec"><h4>📁 输出格式</h4><p><strong>SAM/BAM</strong>：比对位置、CIGAR串、比对质量（MAPQ）</p></div>`,
-    render: renderStep5
-  },
-  {
-    title:'步骤 6：变异识别（Variant Calling）',
-    desc:'分析Pileup中各位置碱基组成，用贝叶斯统计识别真实遗传变异（SNP/Indel），输出VCF',
-    substepLabels:['聚焦SNP候选位点（Pileup视图）','统计各等位基因支持read数','贝叶斯模型计算基因型概率','✓ 变异识别完成！输出VCF报告'],
-    theory:`<div class="tsec"><h4>🧮 为何不直接看频率？</h4><p>测序错误干扰，需贝叶斯框架区分真实变异和噪音，综合考虑碱基质量、比对质量和先验概率。</p></div>
-<div class="tsec"><h4>📐 贝叶斯基因型分型</h4><div class="code-box">P(GT|Data) ∝ P(Data|GT) × P(GT)</div><p>对每个位置计算三种基因型（0/0, 0/1, 1/1）的后验概率。</p></div>
-<div class="hbox-g">SNP位置 ${()=>SNP_POS+1}：参考碱基 ${()=>SNP_REF_BASE}，变异等位 ${()=>SNP_ALT_BASE}<br>杂合变异 (0/1) 后验概率最高</div>`,
-    render: renderStep6
-  }
-];
+function getSteps() {
+  return [
+    {
+      title: t('step1.title'),
+      desc: t('step1.desc'),
+      nav: t('step1.nav'),
+      substepLabels: [t('step1.sub0'), t('step1.sub1'), t('step1.sub2'), t('step1.sub3')],
+      theory: t('step1.theory'),
+      render: renderStep1
+    },
+    {
+      title: t('step2.title'),
+      desc: t('step2.desc'),
+      nav: t('step2.nav'),
+      substepLabels: [t('step2.sub0'), t('step2.sub1'), t('step2.sub2'), t('step2.sub3')],
+      theory: t('step2.theory'),
+      render: renderStep2
+    },
+    {
+      title: t('step3.title'),
+      desc: t('step3.desc'),
+      nav: t('step3.nav'),
+      substepLabels: [t('step3.sub0'), t('step3.sub1'), t('step3.sub2'), t('step3.sub3'), t('step3.sub4'), t('step3.sub5')],
+      theory: t('step3.theory'),
+      render: renderStep3
+    },
+    {
+      title: t('step4.title'),
+      desc: t('step4.desc'),
+      nav: t('step4.nav'),
+      substepLabels: [t('step4.sub0'), t('step4.sub1'), t('step4.sub2'), t('step4.sub3')],
+      theory: t('step4.theory'),
+      render: renderStep4
+    },
+    {
+      title: t('step5.title'),
+      desc: t('step5.desc'),
+      nav: t('step5.nav'),
+      substepLabels: [t('step5.sub0'), t('step5.sub1'), t('step5.sub2'), t('step5.sub3'), t('step5.sub4'), t('step5.sub5')],
+      theory: t('step5.theory'),
+      render: renderStep5
+    },
+    {
+      title: t('step6.title'),
+      desc: t('step6.desc'),
+      nav: t('step6.nav'),
+      substepLabels: [t('step6.sub0'), t('step6.sub1'), t('step6.sub2'), t('step6.sub3')],
+      theory: t('step6.theory') + `<div class="hbox-g">${t('step6.theory.snp_info', SNP_POS+1, SNP_REF_BASE, SNP_ALT_BASE)}</div>`,
+      render: renderStep6
+    }
+  ];
+}
+
+let STEPS = getSteps();
 
 // ── Step 1: DNA 片段化 ────────────────────────────────────────
 
@@ -122,7 +104,7 @@ function renderStep1(substep){
   const frags=[[0,9],[10,19],[20,28],[29,REF.length-1]];
 
   if(substep===0){
-    c+=T(W/2,topY-22,'基因组 DNA（双链，'+REF.length+' bp）','#8b949e',13,'middle','normal','sans-serif');
+    c+=T(W/2,topY-22,t('svg.genome_dna',REF.length),'#8b949e',13,'middle','normal','sans-serif');
     c+=T(sx-12,topY+bpH/2+4,"5'→",'#388bfd',11,'end','normal','monospace');
     c+=T(sx-12,botY+bpH/2+4,"3'←",'#388bfd',11,'end','normal','monospace');
     for(let i=0;i<Math.min(REF.length,46);i++){
@@ -132,7 +114,7 @@ function renderStep1(substep){
       c+=drawBase(x,botY,comp,bpW,bpH);
     }
   } else if(substep===1){
-    c+=T(W/2,32,'⚡  超声波剪切（Sonication）  ⚡','#d29922',14,'middle','bold','sans-serif');
+    c+=T(W/2,32,t('svg.sonication'),'#d29922',14,'middle','bold','sans-serif');
     for(let w=0;w<4;w++){
       const wy=topY-50+w*12;
       let d=`M ${sx} ${wy}`;
@@ -151,7 +133,7 @@ function renderStep1(substep){
       c+=`<polygon points="${cx},${topY} ${cx-5},${topY-10} ${cx+5},${topY-10}" fill="#f85149"/>`;
     });
   } else if(substep===2){
-    c+=T(W/2,32,'DNA链在随机位点断裂…','#f85149',13,'middle','bold','sans-serif');
+    c+=T(W/2,32,t('svg.breaking'),'#f85149',13,'middle','bold','sans-serif');
     const dy=[-8,-3,3,8];
     frags.forEach(([s,e],fi)=>{
       for(let i=s;i<=Math.min(e,45);i++){
@@ -167,14 +149,14 @@ function renderStep1(substep){
       c+=T(cx,44,'✂','#f85149',14,'middle','normal','sans-serif');
     });
   } else {
-    c+=T(W/2,28,'片段化完成！共 4 个片段，准备进行文库构建','#3fb950',14,'middle','bold','sans-serif');
+    c+=T(W/2,28,t('svg.frag_done'),'#3fb950',14,'middle','bold','sans-serif');
     const fragColors=['rgba(56,139,253,0.12)','rgba(63,185,80,0.12)','rgba(210,153,34,0.12)','rgba(248,81,73,0.12)'];
     const fragY=[70,140,210,280];
     const dispW=17,dispH=22,lbx=120;
     frags.forEach(([s,e],fi)=>{
       const len=e-s+1;
       c+=R(16,fragY[fi]-4,768,dispH+8,fragColors[fi],4);
-      c+=T(80,fragY[fi]+dispH/2+4,`片段${fi+1}`,'#c9d1d9',11,'middle','normal','sans-serif');
+      c+=T(80,fragY[fi]+dispH/2+4,`${t('svg.frag')}${fi+1}`,'#c9d1d9',11,'middle','normal','sans-serif');
       c+=T(30,fragY[fi]+dispH/2+4,`${s+1}–${e+1}`,'#8b949e',10,'start','normal','monospace');
       for(let i=s;i<=e&&i<REF.length;i++) c+=drawBase(lbx+(i-s)*dispW,fragY[fi],REF[i],dispW,dispH);
       c+=T(lbx+len*dispW+18,fragY[fi]+dispH/2+4,`${len} bp`,'#8b949e',11,'start','normal','monospace');
@@ -193,7 +175,7 @@ function renderStep2(substep){
   const centerX=(W-fragW)/2,topY=140,botY=topY+bpH+8,adW=60;
 
   if(substep===0){
-    c+=T(W/2,50,'取出第一个片段（片段1，10 bp）进行文库构建','#8b949e',13,'middle','normal','sans-serif');
+    c+=T(W/2,50,t('svg.take_frag'),'#8b949e',13,'middle','normal','sans-serif');
     for(let i=0;i<frag.length;i++){
       c+=drawBase(centerX+i*bpW,topY,frag[i],bpW,bpH);
       c+=L(centerX+i*bpW+bpW/2,topY+bpH,centerX+i*bpW+bpW/2,botY,'#3a4050',1.5);
@@ -203,10 +185,10 @@ function renderStep2(substep){
     c+=T(centerX-6,botY+bpH/2+4,"3'",'#388bfd',11,'end','normal','monospace');
     c+=T(centerX+fragW+6,topY+bpH/2+4,"3'",'#388bfd',11,'start','normal','monospace');
     c+=T(centerX+fragW+6,botY+bpH/2+4,"5'",'#388bfd',11,'start','normal','monospace');
-    c+=T(centerX-20,topY+bpH+4,'⚠ 粗糙末端','#d29922',10,'end','normal','sans-serif');
+    c+=T(centerX-20,topY+bpH+4,t('svg.rough_end'),'#d29922',10,'end','normal','sans-serif');
   } else if(substep===1){
-    c+=T(W/2,40,'末端修复（End Repair）','#388bfd',14,'middle','bold','sans-serif');
-    c+=T(W/2,60,'T4聚合酶+Klenow将末端补成平末端（Blunt End）','#8b949e',12,'middle','normal','sans-serif');
+    c+=T(W/2,40,t('svg.end_repair'),'#388bfd',14,'middle','bold','sans-serif');
+    c+=T(W/2,60,t('svg.end_repair_desc'),'#8b949e',12,'middle','normal','sans-serif');
     for(let i=0;i<frag.length;i++){
       c+=drawBase(centerX+i*bpW,topY,frag[i],bpW,bpH);
       c+=L(centerX+i*bpW+bpW/2,topY+bpH,centerX+i*bpW+bpW/2,botY,'#3a4050',1.5);
@@ -217,10 +199,10 @@ function renderStep2(substep){
     c+=T(centerX-24,topY+bpH+4,'T4','#388bfd',10,'middle','bold','sans-serif');
     c+=R(centerX+fragW+8,topY-10,32,bpH*2+18,ec,6);
     c+=T(centerX+fragW+24,topY+bpH+4,'T4','#388bfd',10,'middle','bold','sans-serif');
-    c+=T(W/2,topY+bpH*2+30,'✓ 平末端','#3fb950',12,'middle','bold','sans-serif');
+    c+=T(W/2,topY+bpH*2+30,t('svg.blunt_end'),'#3fb950',12,'middle','bold','sans-serif');
   } else if(substep===2){
-    c+=T(W/2,40,'A尾添加（A-Tailing）','#d29922',14,'middle','bold','sans-serif');
-    c+=T(W/2,60,"Taq聚合酶在每条链3'末端添加腺嘌呤（A）",'#8b949e',12,'middle','normal','sans-serif');
+    c+=T(W/2,40,t('svg.a_tailing'),'#d29922',14,'middle','bold','sans-serif');
+    c+=T(W/2,60,t('svg.a_tailing_desc'),'#8b949e',12,'middle','normal','sans-serif');
     for(let i=0;i<frag.length;i++){
       c+=drawBase(centerX+i*bpW,topY,frag[i],bpW,bpH);
       c+=L(centerX+i*bpW+bpW/2,topY+bpH,centerX+i*bpW+bpW/2,botY,'#3a4050',1.5);
@@ -228,9 +210,9 @@ function renderStep2(substep){
     }
     c+=drawBase(centerX+fragW+2,topY,'A',bpW,bpH);
     c+=drawBase(centerX-bpW-2,botY,'A',bpW,bpH);
-    c+=T(centerX+fragW+bpW/2+2,topY-8,"3'A尾",'#d29922',10,'middle','normal','sans-serif');
+    c+=T(centerX+fragW+bpW/2+2,topY-8,t('svg.a_tail_label'),'#d29922',10,'middle','normal','sans-serif');
   } else {
-    c+=T(W/2,36,'接头连接完成！文库片段结构','#3fb950',14,'middle','bold','sans-serif');
+    c+=T(W/2,36,t('svg.adapter_done'),'#3fb950',14,'middle','bold','sans-serif');
     const p5='#6e40c9',p7='#1f6feb';
     c+=R(centerX-adW-2,topY,adW,bpH,p5+'33',4,'stroke="'+p5+'" stroke-width="1.5"');
     c+=T(centerX-adW/2-2,topY+bpH/2+5,'P5',p5,11,'middle','bold','sans-serif');
@@ -243,9 +225,9 @@ function renderStep2(substep){
     c+=R(centerX+fragW+2,topY,adW,bpH,p7+'33',4,'stroke="'+p7+'" stroke-width="1.5"');
     c+=T(centerX+fragW+adW/2+2,topY+bpH/2+5,'P7',p7,11,'middle','bold','sans-serif');
     c+=R(centerX+fragW+2,botY,adW,bpH,p7+'22',4,'stroke="'+p7+'" stroke-width="1"');
-    c+=T(centerX-adW/2-2,topY-10,'接头',p5,10,'middle','normal','sans-serif');
-    c+=T(centerX+fragW+adW/2+2,topY-10,'接头',p7,10,'middle','normal','sans-serif');
-    c+=T(W/2,H-40,'✓ 文库片段构建完成，所有片段合并为"文库"（Library）','#3fb950',13,'middle','bold','sans-serif');
+    c+=T(centerX-adW/2-2,topY-10,t('svg.adapter'),p5,10,'middle','normal','sans-serif');
+    c+=T(centerX+fragW+adW/2+2,topY-10,t('svg.adapter'),p7,10,'middle','normal','sans-serif');
+    c+=T(W/2,H-40,t('svg.lib_done'),'#3fb950',13,'middle','bold','sans-serif');
   }
   return c;
 }
@@ -261,17 +243,17 @@ function renderStep3(substep){
   const templateY=100,growY=templateY+bpH+12;
 
   c+=R(60,75,680,280,'#161b22',10,'stroke="#30363d" stroke-width="1"');
-  c+=T(W/2,66,'Illumina 流动池（Flow Cell）','#555',11,'middle','normal','sans-serif');
+  c+=T(W/2,66,t('svg.flow_cell'),'#555',11,'middle','normal','sans-serif');
 
   if(substep===0){
-    c+=T(W/2,50,'模板链固定在流动池上，测序引物（Primer）就位','#8b949e',12,'middle','normal','sans-serif');
+    c+=T(W/2,50,t('svg.template_fixed'),'#8b949e',12,'middle','normal','sans-serif');
     c+=T(startX-20,templateY+bpH/2+4,"5'→",'#388bfd',11,'end','normal','monospace');
     for(let i=0;i<template.length;i++) c+=drawBase(startX+i*bpW,templateY,template[i],bpW,bpH);
     c+=T(startX+template.length*bpW+8,templateY+bpH/2+4,"→3'",'#388bfd',11,'start','normal','monospace');
     c+=R(startX-4,growY+2,60,22,'#6e40c922',4,'stroke="#6e40c9" stroke-width="1.5"');
-    c+=T(startX+26,growY+16,'引物','#6e40c9',11,'middle','normal','sans-serif');
+    c+=T(startX+26,growY+16,t('svg.primer'),'#6e40c9',11,'middle','normal','sans-serif');
   } else {
-    c+=T(W/2,50,`已完成 ${numCycles} 个循环，合成链逐步延伸`,'#3fb950',12,'middle','bold','sans-serif');
+    c+=T(W/2,50,t('svg.cycles_done',numCycles),'#3fb950',12,'middle','bold','sans-serif');
     c+=T(startX-20,templateY+bpH/2+4,"5'→",'#388bfd',11,'end','normal','monospace');
     for(let i=0;i<template.length;i++) c+=drawBase(startX+i*bpW,templateY,template[i],bpW,bpH);
     for(let i=0;i<numCycles;i++){
@@ -293,7 +275,7 @@ function renderStep3(substep){
     }
     if(substep===5){
       const rs=growing.slice(0,8).join('');
-      c+=T(W/2,H-65,'✓ Read 序列读取完成！（前8个碱基）','#3fb950',13,'middle','bold','sans-serif');
+      c+=T(W/2,H-65,t('svg.read_done'),'#3fb950',13,'middle','bold','sans-serif');
       c+=R(180,H-52,440,28,'#161b22',4,'stroke="#30363d"');
       c+=T(W/2,H-33,rs,'#3fb950',15,'middle','bold','monospace');
     }
@@ -310,8 +292,8 @@ function renderStep4(substep){
   const bases=['A','T','C','G'];
 
   if(substep===0){
-    c+=T(W/2,38,'原始荧光强度信号（4通道）','#c9d1d9',14,'middle','bold','sans-serif');
-    c+=T(W/2,56,'每个位置同时检测4种颜色的荧光强度','#8b949e',12,'middle','normal','sans-serif');
+    c+=T(W/2,38,t('svg.raw_signal'),'#c9d1d9',14,'middle','bold','sans-serif');
+    c+=T(W/2,56,t('svg.signal_desc'),'#8b949e',12,'middle','normal','sans-serif');
     c+=L(chartX,chartY,chartX,chartY+chartH,'#30363d',1);
     c+=T(chartX-5,chartY,'100','#555',9,'end');
     c+=T(chartX-5,chartY+barMaxH,'0','#555',9,'end');
@@ -324,7 +306,7 @@ function renderStep4(substep){
       c+=T(chartX+pos*posW+posW/2+10,chartY+chartH+14,`${pos+1}`,'#8b949e',10,'middle','normal','monospace');
     });
   } else if(substep===1){
-    c+=T(W/2,38,'碱基识别（Base Calling）','#c9d1d9',14,'middle','bold','sans-serif');
+    c+=T(W/2,38,t('svg.base_calling'),'#c9d1d9',14,'middle','bold','sans-serif');
     const seqY=280,seqX=chartX+10,bpW2=52;
     SIGNAL_DATA.forEach((sd,pos)=>{
       const px=chartX+pos*posW+10;
@@ -335,7 +317,7 @@ function renderStep4(substep){
       c+=drawBase(seqX+pos*bpW2,seqY,sd.base,bpW2,30);
     });
   } else if(substep===2){
-    c+=T(W/2,38,'Phred 质量分数（Q值）计算','#c9d1d9',14,'middle','bold','sans-serif');
+    c+=T(W/2,38,t('svg.phred'),'#c9d1d9',14,'middle','bold','sans-serif');
     const seqX=60,seqY=100,bpW2=52,bpH2=30,qbarY=170,qbarMaxH=70;
     SIGNAL_DATA.forEach((sd,pos)=>{
       const x=seqX+pos*bpW2;
@@ -352,16 +334,16 @@ function renderStep4(substep){
     c+=T(seqX-6,qbarY+qbarMaxH*0.5,'Q20','#d29922',9,'end','normal','monospace');
     c+=L(seqX-4,qbarY+qbarMaxH*0.5,seqX+8*52,qbarY+qbarMaxH*0.5,'#30363d',0.5,'stroke-dasharray="4,3"');
   } else {
-    c+=T(W/2,38,'输出 FASTQ 格式文件','#c9d1d9',14,'middle','bold','sans-serif');
+    c+=T(W/2,38,t('svg.fastq_output'),'#c9d1d9',14,'middle','bold','sans-serif');
     const seq8=SBS_GROWING.slice(0,8).join(''),qual8=seq8.split('').map((_,i)=>qChar(genQual(1,i))).join('');
     const lines=[
-      {text:`@Lib_Frag1_Read_001`,color:'#388bfd',label:'① 序列ID行（@开头）'},
-      {text:seq8+'ACGT',color:'#3fb950',label:'② 碱基序列'},
-      {text:'+',color:'#8b949e',label:'③ 分隔符'},
-      {text:qual8+'IIHH',color:'#d29922',label:'④ 质量分数（ASCII编码）'},
+      {text:`@Lib_Frag1_Read_001`,color:'#388bfd',label:t('svg.fastq_id')},
+      {text:seq8+'ACGT',color:'#3fb950',label:t('svg.fastq_seq')},
+      {text:'+',color:'#8b949e',label:t('svg.fastq_sep')},
+      {text:qual8+'IIHH',color:'#d29922',label:t('svg.fastq_qual')},
     ];
     lines.forEach((l,i)=>{ c+=R(80,100+i*60,500,40,'#161b22',4,'stroke="#30363d"'); c+=T(90,100+i*60+26,l.text,l.color,13,'start','normal','monospace'); c+=T(600,100+i*60+26,l.label,'#8b949e',11,'start','normal','sans-serif'); });
-    c+=T(80,358,"例：'I' (ASCII=73) → Q = 73−33 = 40",'#8b949e',11,'start','normal','monospace');
+    c+=T(80,358,t('svg.ascii_example'),'#8b949e',11,'start','normal','monospace');
   }
   return c;
 }
@@ -384,7 +366,7 @@ function renderStep5(substep){
   // 绘制参考序列（可选高亮集合）
   function drawRef(hlSet) {
     hlSet = hlSet || new Set();
-    c += T(refX-6, refY+bpH/2+4, '参考', '#8b949e', 9, 'end', 'normal', 'sans-serif');
+    c += T(refX-6, refY+bpH/2+4, t('svg.ref'), '#8b949e', 9, 'end', 'normal', 'sans-serif');
     for (let i = 0; i < REF.length; i++) {
       const base=REF[i], isSnp=(i===SNP_POS), isHl=hlSet.has(i);
       c += R(refX+i*bpW, refY, bpW-1, bpH,
@@ -401,7 +383,7 @@ function renderStep5(substep){
   // ──────────────────────────────────────────────────────────
   if (substep === 0) {
   // ① K-mer 索引构建
-    c += T(W/2, 20, `① 构建K-mer索引（k=${k}）— 扫描参考序列所有${k}-mer，存入哈希表`, '#c9d1d9', 11, 'middle', 'bold', 'sans-serif');
+    c += T(W/2, 20, t('svg.kmer_index_title',k), '#c9d1d9', 11, 'middle', 'bold', 'sans-serif');
     drawRef();
 
     // 3个滑窗示例
@@ -417,7 +399,7 @@ function renderStep5(substep){
     // K-mer索引表（最多14行，2列）
     const entries = Object.entries(KMER_INDEX).slice(0, 14);
     const tY=refY+bpH+36, rowH=22, kbw=10;
-    c += T(W/2, tY-8, `K-mer 索引表（共 ${Object.keys(KMER_INDEX).length} 个唯一K-mer）`, '#8b949e', 10, 'middle', 'bold', 'sans-serif');
+    c += T(W/2, tY-8, t('svg.kmer_table',Object.keys(KMER_INDEX).length), '#8b949e', 10, 'middle', 'bold', 'sans-serif');
     entries.forEach(([km, positions], idx) => {
       const col = idx>=7?1:0, row = idx>=7?idx-7:idx;
       const tx  = col===0?28:W/2+8;
@@ -438,7 +420,7 @@ function renderStep5(substep){
   // ② 种子提取
     const read1 = READS[0];
     const hits  = findSeedHits(read1.seq, k);
-    c += T(W/2, 20, `② 种子提取 — 从 Read 1 中按步长抽取${k}-mer，在索引中查询命中位置`, '#c9d1d9', 11, 'middle', 'bold', 'sans-serif');
+    c += T(W/2, 20, t('svg.seed_extract',k), '#c9d1d9', 11, 'middle', 'bold', 'sans-serif');
 
     const hlSet = new Set();
     hits.forEach(h => { for (let i=0;i<k;i++) hlSet.add(h.refPos+i); });
@@ -474,11 +456,11 @@ function renderStep5(substep){
     }
 
     const uniq=Object.keys(voteAlignment(hits)).length;
-    c += T(W/2, H-22, `Read 1 共命中 ${hits.length} 次，涉及 ${uniq} 个候选起始位置 → 进入位置投票`, '#8b949e', 11, 'middle', 'normal', 'sans-serif');
+    c += T(W/2, H-22, t('svg.seed_result',hits.length,uniq), '#8b949e', 11, 'middle', 'normal', 'sans-serif');
 
   } else if (substep === 2) {
   // ③ 位置投票
-    c += T(W/2, 20, `③ 位置投票 — 每次种子命中为对应起始位置投一票，票数最多即为最优`, '#c9d1d9', 11, 'middle', 'bold', 'sans-serif');
+    c += T(W/2, 20, t('svg.voting'), '#c9d1d9', 11, 'middle', 'bold', 'sans-serif');
     drawRef();
 
     const read1 = READS[0];
@@ -490,7 +472,7 @@ function renderStep5(substep){
       .sort((a,b) => a.start-b.start);
 
     if (!vArr.length) {
-      c += T(W/2, H/2, '当前参数下无有效候选位置，请降低K-mer大小', '#f85149', 13, 'middle', 'bold', 'sans-serif');
+      c += T(W/2, H/2, t('svg.no_candidate'), '#f85149', 13, 'middle', 'bold', 'sans-serif');
       return c;
     }
     const maxV  = Math.max(...vArr.map(e=>e.votes));
@@ -502,7 +484,7 @@ function renderStep5(substep){
     c += L(chX, chY+bMaxH, chX+chW, chY+bMaxH, '#30363d', 1);
     c += T(chX-8, chY, `${maxV}`, '#555', 8, 'end', 'normal', 'monospace');
     c += T(chX-8, chY+bMaxH, '0', '#555', 8, 'end', 'normal', 'monospace');
-    c += T(W/2, chY-16, `候选起始位置（1-based）vs 种子投票数`, '#8b949e', 10, 'middle', 'normal', 'sans-serif');
+    c += T(W/2, chY-16, t('svg.candidate_pos'), '#8b949e', 10, 'middle', 'normal', 'sans-serif');
 
     vArr.forEach((e, idx) => {
       const bx=chX+idx*(bW+3), bh=(e.votes/maxV)*bMaxH, isBest=e.start===bestE.start;
@@ -510,7 +492,7 @@ function renderStep5(substep){
       c += T(bx+bW/2, chY+bMaxH+11, `${e.start+1}`, isBest?'#3fb950':'#555', 7, 'middle', 'normal', 'monospace');
       if (isBest) c += T(bx+bW/2, chY+bMaxH-bh-9, `★${e.votes}`, '#3fb950', 8, 'middle', 'bold', 'sans-serif');
     });
-    c += T(W/2, H-22, `✓ 最优起始位置：第 ${bestE.start+1} 位（${bestE.votes} 票）→ 进入精确比对验证`, '#3fb950', 11, 'middle', 'bold', 'sans-serif');
+    c += T(W/2, H-22, t('svg.best_pos',bestE.start+1,bestE.votes), '#3fb950', 11, 'middle', 'bold', 'sans-serif');
 
   } else if (substep === 3) {
   // ④ 比对验证（简化 Smith-Waterman）
@@ -525,7 +507,7 @@ function renderStep5(substep){
       : read1.start;
     const aln = scoreAlignment(read1.seq, bestStart);
 
-    c += T(W/2, 20, `④ 比对验证 — 在位置 ${bestStart+1} 逐碱基比对，计算简化Smith-Waterman得分`, '#c9d1d9', 11, 'middle', 'bold', 'sans-serif');
+    c += T(W/2, 20, t('svg.align_verify',bestStart+1), '#c9d1d9', 11, 'middle', 'bold', 'sans-serif');
     drawRef();
 
     const alnY=refY+bpH+10, symY=refY+bpH+1;
@@ -542,10 +524,10 @@ function renderStep5(substep){
 
     const sx2=160, sy2=alnY+bpH+18;
     c += R(sx2, sy2, W-2*sx2, 80, '#161b22', 6, 'stroke="#30363d" stroke-width="1"');
-    c += T(W/2, sy2+18, `匹配(+1) × ${aln.matches}  +  错配(−2) × ${aln.mismatches}`, '#8b949e', 11, 'middle', 'normal', 'monospace');
-    c += T(W/2, sy2+38, `Smith-Waterman 简化得分 = ${aln.score}`, '#c9d1d9', 13, 'middle', 'bold', 'monospace');
+    c += T(W/2, sy2+18, t('svg.match_stat',aln.matches,aln.mismatches), '#8b949e', 11, 'middle', 'normal', 'monospace');
+    c += T(W/2, sy2+38, t('svg.sw_score',aln.score), '#c9d1d9', 13, 'middle', 'bold', 'monospace');
     const accepted = aln.score > 0;
-    c += T(W/2, sy2+60, accepted?`✓ 接受比对（得分 ${aln.score} > 阈值 0）`:`✗ 拒绝（得分 ${aln.score} ≤ 0）`, accepted?'#3fb950':'#f85149', 11, 'middle', 'bold', 'sans-serif');
+    c += T(W/2, sy2+60, accepted?t('svg.accept',aln.score):t('svg.reject',aln.score), accepted?'#3fb950':'#f85149', 11, 'middle', 'bold', 'sans-serif');
 
   } else {
   // ⑤⑥ Pileup（前半 / 全部 + 覆盖深度）
@@ -554,8 +536,8 @@ function renderStep5(substep){
     const visReads= READS.slice(0, visCount);
 
     c += T(W/2, 20, isFull
-      ? `⑥ 完整Pileup — 全部 ${READS.length} 条Reads比对完成，SNP候选位点（位置 ${SNP_POS+1}）`
-      : `⑤ 逐步比对 — 前 ${visCount}/${READS.length} 条Reads已定位到参考序列`,
+      ? t('svg.full_pileup',READS.length,SNP_POS+1)
+      : t('svg.partial_pileup',visCount,READS.length),
       isFull?'#3fb950':'#c9d1d9', 11, 'middle', 'bold', 'sans-serif');
 
     // SNP列高亮（仅全Pileup）
@@ -584,7 +566,7 @@ function renderStep5(substep){
       }
     });
     if (visReads.length>maxRows) {
-      c += T(refX, pileupY+maxRows*pRowH+8, `…还有 ${visReads.length-maxRows} 条reads未显示`, '#555', 9, 'start', 'normal', 'sans-serif');
+      c += T(refX, pileupY+maxRows*pRowH+8, t('svg.more_reads',visReads.length-maxRows), '#555', 9, 'start', 'normal', 'sans-serif');
     }
 
     // 覆盖深度图（仅全Pileup）
@@ -597,11 +579,11 @@ function renderStep5(substep){
         const bh=(d/maxD)*covH;
         c += R(refX+i*bpW, covY-bh, bpW-1, bh, i===SNP_POS?'#f8514988':'#388bfd66', 1);
       });
-      c += T(refX-6, covY-covH/2, '深度', '#555', 7, 'end', 'normal', 'sans-serif');
+      c += T(refX-6, covY-covH/2, t('svg.depth'), '#555', 7, 'end', 'normal', 'sans-serif');
       c += T(refX-6, covY, '0', '#555', 7, 'end', 'normal', 'monospace');
       c += T(refX-6, covY-covH, `${maxD}`, '#555', 7, 'end', 'normal', 'monospace');
       const avgCov=(depth.reduce((a,b)=>a+b,0)/REF.length).toFixed(1);
-      c += T(W/2, H-10, `平均覆盖深度：${avgCov}×  |  SNP位点（位置${SNP_POS+1}）深度：${depth[SNP_POS]}×`, '#555', 9, 'middle', 'normal', 'sans-serif');
+      c += T(W/2, H-10, t('svg.avg_cov',avgCov,SNP_POS+1,depth[SNP_POS]), '#555', 9, 'middle', 'normal', 'sans-serif');
     }
   }
   return c;
@@ -624,8 +606,8 @@ function renderStep6(substep){
   const total    = snpBases.length;
 
   if(substep===0){
-    c+=T(W/2,36,`聚焦 SNP 候选位点：参考基因组第 ${SNP_POS+1} 位（参考碱基：${SNP_REF_BASE}）`,'#c9d1d9',13,'middle','bold','sans-serif');
-    c+=T(W/2,56,'显示覆盖该位点的所有Reads（Pileup视图）','#8b949e',12,'middle','normal','sans-serif');
+    c+=T(W/2,36,t('svg.snp_focus',SNP_POS+1,SNP_REF_BASE),'#c9d1d9',13,'middle','bold','sans-serif');
+    c+=T(W/2,56,t('svg.pileup_view'),'#8b949e',12,'middle','normal','sans-serif');
     const bpW2=36,bpH2=28,colX=380,context=5;
     const ctxStart=Math.max(0,SNP_POS-context),ctxEnd=Math.min(REF.length-1,SNP_POS+context);
     const refY2=88;
@@ -635,7 +617,7 @@ function renderStep6(substep){
       c+=T(x+bpW2/2-1,refY2+bpH2/2+5,REF[i],'#fff'+(isSnp?'':'88'),isSnp?13:10,'middle','bold');
       c+=T(x+bpW2/2-1,refY2-7,`${i+1}`,'#555',8,'middle');
     }
-    c+=T(colX,refY2-18,'参考','#8b949e',10,'middle','normal','sans-serif');
+    c+=T(colX,refY2-18,t('svg.ref'),'#8b949e',10,'middle','normal','sans-serif');
     const rowH2=28;
     snpBases.forEach((sb,ri)=>{
       const ry=refY2+bpH2+14+ri*rowH2,isMis=(sb.base!==SNP_REF_BASE);
@@ -644,7 +626,7 @@ function renderStep6(substep){
       c+=T(colX,ry+rowH2/2+4,sb.base,'#fff',12,'middle','bold');
     });
   } else if(substep===1){
-    c+=T(W/2,36,'统计各等位基因的支持reads数量','#c9d1d9',14,'middle','bold','sans-serif');
+    c+=T(W/2,36,t('svg.allele_stats'),'#c9d1d9',14,'middle','bold','sans-serif');
     const bpS=26,colX=120;
     snpBases.slice(0,10).forEach((sb,ri)=>{
       const ry=76+ri*30,isMis=(sb.base!==SNP_REF_BASE);
@@ -653,26 +635,26 @@ function renderStep6(substep){
       c+=T(colX+bpS+8,ry+bpS/2+4,`Read ${sb.readId} → ${sb.base}`,isMis?'#f85149':'#c9d1d9',10,'start','normal','monospace');
     });
     const cx=500,cy=88;
-    c+=T(cx,cy-16,`位置${SNP_POS+1} 碱基统计`,'#c9d1d9',13,'middle','bold','sans-serif');
+    c+=T(cx,cy-16,t('svg.pos_stats',SNP_POS+1),'#c9d1d9',13,'middle','bold','sans-serif');
     if(total>0){
       c+=R(cx-70,cy,50,refCount/total*120,BASE_COLOR[SNP_REF_BASE],4);
       c+=T(cx-45,cy+refCount/total*120+14,`${SNP_REF_BASE}: ${refCount}条`,BASE_COLOR[SNP_REF_BASE],11,'middle','bold','sans-serif');
       c+=R(cx+20,cy,50,altCount/total*120,BASE_COLOR[SNP_ALT_BASE],4);
       c+=T(cx+45,cy+altCount/total*120+14,`${SNP_ALT_BASE}: ${altCount}条`,BASE_COLOR[SNP_ALT_BASE],11,'middle','bold','sans-serif');
       c+=L(cx-80,cy,cx+80,cy,'#30363d',1);
-      c+=T(cx,cy+148,`总深度：${total}×`,'#8b949e',11,'middle','normal','sans-serif');
+      c+=T(cx,cy+148,t('svg.total_depth',total),'#8b949e',11,'middle','normal','sans-serif');
       c+=T(cx,cy+166,`VAF：${altCount}/${total} = ${(altCount/total*100).toFixed(0)}%`,'#c9d1d9',12,'middle','bold','monospace');
     }
   } else if(substep===2){
-    c+=T(W/2,36,'贝叶斯模型：计算各基因型后验概率','#c9d1d9',14,'middle','bold','sans-serif');
-    c+=T(W/2,56,'P(基因型 | 数据) ∝ P(数据 | 基因型) × P(基因型)','#8b949e',12,'middle','normal','monospace');
+    c+=T(W/2,36,t('svg.bayesian'),'#c9d1d9',14,'middle','bold','sans-serif');
+    c+=T(W/2,56,t('svg.bayesian_formula'),'#8b949e',12,'middle','normal','monospace');
     const vaf=total>0?altCount/total:0;
     const probs=[Math.max(0.01,1-vaf*2), Math.min(0.97,vaf*(1-vaf)*4), Math.max(0.01,vaf*2-1)];
     const sum=probs.reduce((a,b)=>a+b,0);
     const gts=[
-      {name:`0/0（纯合参考 ${SNP_REF_BASE}${SNP_REF_BASE}）`,prob:probs[0]/sum,color:'#8b949e',desc:'假设样本纯合参考：观测到变异reads概率低'},
-      {name:`0/1（杂合 ${SNP_REF_BASE}${SNP_ALT_BASE}）`,prob:probs[1]/sum,color:'#3fb950',desc:'假设杂合：期望约50%变异，与观测最吻合'},
-      {name:`1/1（纯合变异 ${SNP_ALT_BASE}${SNP_ALT_BASE}）`,prob:probs[2]/sum,color:'#f85149',desc:'假设纯合变异：观测到参考reads概率低'},
+      {name:t('svg.gt_homo_ref',SNP_REF_BASE),prob:probs[0]/sum,color:'#8b949e',desc:t('svg.gt_homo_ref_desc')},
+      {name:t('svg.gt_het',SNP_REF_BASE,SNP_ALT_BASE),prob:probs[1]/sum,color:'#3fb950',desc:t('svg.gt_het_desc')},
+      {name:t('svg.gt_homo_alt',SNP_ALT_BASE),prob:probs[2]/sum,color:'#f85149',desc:t('svg.gt_homo_alt_desc')},
     ];
     gts.forEach((gt,i)=>{
       const gy=100+i*78,bw=gt.prob*420;
@@ -682,10 +664,10 @@ function renderStep6(substep){
       c+=T(80,gy+52,gt.desc,'#8b949e',10,'start','normal','sans-serif');
     });
     const bestGT=gts.reduce((b,g)=>g.prob>b.prob?g:b,gts[0]);
-    c+=T(W/2,H-38,`后验概率最高的基因型为 ${bestGT.name}，置信度 ${(bestGT.prob*100).toFixed(0)}%`,'#3fb950',11,'middle','bold','sans-serif');
+    c+=T(W/2,H-38,t('svg.best_gt',bestGT.name,(bestGT.prob*100).toFixed(0)),'#3fb950',11,'middle','bold','sans-serif');
   } else {
-    c+=T(W/2,40,'✓  变异识别完成！SNP 已报告','#3fb950',15,'middle','bold','sans-serif');
-    c+=T(W/2,68,'VCF 格式输出（Variant Call Format）','#8b949e',12,'middle','normal','sans-serif');
+    c+=T(W/2,40,t('svg.variant_done'),'#3fb950',15,'middle','bold','sans-serif');
+    c+=T(W/2,68,t('svg.vcf_output'),'#8b949e',12,'middle','normal','sans-serif');
     const vaf=total>0?altCount/total:0;
     const vcfLines=[
       '##fileformat=VCFv4.2',
@@ -695,9 +677,9 @@ function renderStep6(substep){
     ];
     vcfLines.forEach((l,i)=>{ const ly=100+i*36,isData=i===3; c+=R(40,ly,720,30,'#161b22',3,'stroke="#30363d"'); c+=T(52,ly+20,l,isData?'#3fb950':'#555',11,'start','normal','monospace'); });
     c+=R(40,258,720,90,'rgba(63,185,80,0.08)',6,'stroke="#3fb950" stroke-width="1"');
-    c+=T(W/2,278,'📋  分析总结','#3fb950',13,'middle','bold','sans-serif');
-    c+=T(W/2,298,`参考基因组第${SNP_POS+1}位发生 ${SNP_REF_BASE}→${SNP_ALT_BASE} 替换（SNP）`,'#c9d1d9',12,'middle','normal','sans-serif');
-    c+=T(W/2,316,`基因型：0/1（杂合）  |  VAF：${(vaf*100).toFixed(0)}%  |  深度：${total}×  |  质量：Q60`,'#8b949e',11,'middle','normal','sans-serif');
+    c+=T(W/2,278,t('svg.summary'),'#3fb950',13,'middle','bold','sans-serif');
+    c+=T(W/2,298,t('svg.snp_result',SNP_POS+1,SNP_REF_BASE,SNP_ALT_BASE),'#c9d1d9',12,'middle','normal','sans-serif');
+    c+=T(W/2,316,t('svg.snp_detail',(vaf*100).toFixed(0),total),'#8b949e',11,'middle','normal','sans-serif');
   }
   return c;
 }
@@ -718,7 +700,7 @@ function updateStepNav(){
   STEPS.forEach((s,i)=>{
     const div=document.createElement('div');
     div.className='step-item'+(i===curStep?' active':i<curStep?' done':'');
-    div.innerHTML=`<div class="step-num">${i+1}</div><div class="step-name">${s.title.replace(/步骤 \d+：/,'')}</div>`;
+    div.innerHTML=`<div class="step-num">${i+1}</div><div class="step-name">${s.nav || s.title}</div>`;
     div.addEventListener('click',()=>goToStep(i));
     inner.appendChild(div);
     if(i<STEPS.length-1){ const conn=document.createElement('div'); conn.className='step-connector'; inner.appendChild(conn); }
@@ -741,6 +723,7 @@ function updateSubstepDots(){
 }
 
 function render(){
+  STEPS = getSteps();
   const step=STEPS[curStep];
   document.getElementById('step-title').textContent=step.title;
   document.getElementById('step-desc').textContent=step.desc;
@@ -758,8 +741,8 @@ function updateButtons(){
   document.getElementById('btn-sub-prev').disabled=(curSub===0&&curStep===0);
   document.getElementById('btn-sub-next').disabled=(curSub===maxSub&&curStep===STEPS.length-1);
   const pb=document.getElementById('btn-play');
-  if(isPlaying){ pb.textContent='⏸ 暂停'; pb.classList.add('playing'); }
-  else         { pb.textContent='▶ 播放'; pb.classList.remove('playing'); }
+  if(isPlaying){ pb.textContent=t('ctrl.pause'); pb.classList.add('playing'); }
+  else         { pb.textContent=t('ctrl.play'); pb.classList.remove('playing'); }
 }
 
 // ── 导航逻辑 ─────────────────────────────────────────────────
