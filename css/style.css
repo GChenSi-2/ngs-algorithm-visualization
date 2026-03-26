@@ -87,6 +87,25 @@ body {
   color: var(--text);
   border-color: var(--text2);
 }
+.lang-btn {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  font-family: inherit;
+  margin-left: 4px;
+}
+.lang-btn:hover {
+  background: var(--border);
+  color: var(--text);
+  border-color: var(--text2);
+}
 
 /* ============================
    Step Navigation Bar

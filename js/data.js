@@ -1,6 +1,6 @@
 /* ============================================================
-   NGS 可视化 — 动态数据生成引擎 v2
-   支持：参考序列长度 / 读段长度 / 测序深度 / K-mer大小 实时调节
+   NGS 可视化 — 动态数据生成引擎 v3
+   支持：参考序列长度 / 片段长度 / 读段长度 / 测序深度 / K-mer大小
    ============================================================ */
 
 const BASE_COLOR = { 'A':'#3fb950','T':'#f85149','C':'#388bfd','G':'#d29922' };
@@ -10,7 +10,8 @@ const BASES       = ['A','T','C','G'];
 // ─── 用户可调参数 ────────────────────────────────────────────
 let CFG = {
   dnaLen:   40,   // 参考序列长度（30–70 bp）
-  readLen:  15,   // 读段长度（8–20 bp）
+  fragLen:  12,   // 片段长度（5–25 bp）
+  readLen:  10,   // 读段长度（6–20 bp）
   coverage:  5,   // 目标测序深度（3–12 ×）
   kmerK:     5,   // K-mer 种子大小（3–7）
   errRate: 0.04,  // 每个碱基的测序错误率
@@ -22,15 +23,16 @@ let SNP_POS      = -1;
 let SNP_REF_BASE = '';
 let SNP_ALT_BASE = '';
 let READS        = [];
-let KMER_INDEX   = {};      // { kmer: [pos0, pos1, ...] }
+let KMER_INDEX   = {};
+let FRAGMENTS    = [];
+let ALIGN_DETAILS= [];
 let SBS_TEMPLATE = '';
 let SBS_GROWING  = [];
 let SIGNAL_DATA  = [];
 
-// ─── 确定性伪随机数（基于参数，保证同参数同结果）──────────
+// ─── 确定性伪随机数 ─────────────────────────────────────────
 let _rng = 0;
 function rngStep() {
-  // xorshift32
   _rng ^= _rng << 13;
   _rng ^= _rng >> 17;
   _rng ^= _rng << 5;
@@ -53,6 +55,27 @@ function genQual(readId, pos) {
   return 18 + ((readId * 17 + pos * 31 + 7) % 23);
 }
 
+// ─── 片段生成 ─────────────────────────────────────────────────
+function generateFragments() {
+  FRAGMENTS = [];
+  let pos = 0;
+  while (pos < CFG.dnaLen) {
+    const remaining = CFG.dnaLen - pos;
+    if (remaining <= Math.max(4, CFG.fragLen * 0.4)) {
+      if (FRAGMENTS.length > 0) {
+        FRAGMENTS[FRAGMENTS.length - 1][1] = CFG.dnaLen - 1;
+      } else {
+        FRAGMENTS.push([0, CFG.dnaLen - 1]);
+      }
+      break;
+    }
+    const variation = Math.max(1, Math.floor(CFG.fragLen * 0.15));
+    const len = Math.min(CFG.fragLen + randInt(-variation, variation + 1), remaining);
+    FRAGMENTS.push([pos, pos + len - 1]);
+    pos += len;
+  }
+}
+
 // ─── K-mer 正向索引 ─────────────────────────────────────────
 function buildKmerIndex(ref, k) {
   const idx = {};
@@ -65,8 +88,6 @@ function buildKmerIndex(ref, k) {
 }
 
 // ─── 种子命中查找 ────────────────────────────────────────────
-//   从 readSeq 中按步长 (k-2) 提取 K-mer，在全局 KMER_INDEX 中查询
-//   返回每次命中的 { readOffset, refPos, km, impliedStart }
 function findSeedHits(readSeq, k) {
   const stride = Math.max(1, k - 2);
   const hits   = [];
@@ -84,17 +105,15 @@ function findSeedHits(readSeq, k) {
 }
 
 // ─── 位置投票 ────────────────────────────────────────────────
-//   汇总每个 impliedStart 获得的票数
 function voteAlignment(hits) {
   const votes = {};
   hits.forEach(h => {
     votes[h.impliedStart] = (votes[h.impliedStart] || 0) + 1;
   });
-  return votes;      // { startPos: count }
+  return votes;
 }
 
 // ─── 比对评分（简化 Smith-Waterman）────────────────────────
-//   match: +1    mismatch: -2
 function scoreAlignment(readSeq, startPos) {
   let matches = 0, mismatches = 0;
   for (let i = 0; i < readSeq.length; i++) {
@@ -118,11 +137,9 @@ function alignOneRead(read) {
 // ─── 读段生成 ────────────────────────────────────────────────
 function makeReadDyn(id, start) {
   const bases = REF.slice(start, start + CFG.readLen).split('');
-  // SNP 注入：覆盖 SNP 位置的 read 有 60% 概率携带变异等位基因
   if (SNP_POS >= start && SNP_POS < start + CFG.readLen) {
     if (randF() < 0.60) bases[SNP_POS - start] = SNP_ALT_BASE;
   }
-  // 随机测序错误
   bases.forEach((_, i) => {
     if (randF() < CFG.errRate) bases[i] = altBase(bases[i]);
   });
@@ -135,8 +152,7 @@ function makeReadDyn(id, start) {
 function generateData(newCfg) {
   if (newCfg) Object.assign(CFG, newCfg);
 
-  // 基于参数的可重现种子（确保同参数同结果）
-  _rng = ((CFG.dnaLen * 6271) ^ (CFG.readLen * 3911) ^ (CFG.coverage * 1597) ^ (CFG.kmerK * 797)) | 0;
+  _rng = ((CFG.dnaLen * 6271) ^ (CFG.readLen * 3911) ^ (CFG.coverage * 1597) ^ (CFG.kmerK * 797) ^ (CFG.fragLen * 2371)) | 0;
   if (_rng === 0) _rng = 0xdeadbeef;
 
   // 1. 生成参考序列
@@ -145,10 +161,13 @@ function generateData(newCfg) {
   SNP_REF_BASE = REF[SNP_POS];
   SNP_ALT_BASE = altBase(SNP_REF_BASE);
 
-  // 2. 构建 K-mer 索引（步骤5需要）
+  // 2. 片段化
+  generateFragments();
+
+  // 3. 构建 K-mer 索引
   KMER_INDEX = buildKmerIndex(REF, CFG.kmerK);
 
-  // 3. 生成测序读段
+  // 4. 生成测序读段
   const numReads = Math.max(4, Math.round(CFG.dnaLen * CFG.coverage / CFG.readLen));
   READS = [];
   for (let i = 0; i < numReads; i++) {
@@ -158,11 +177,14 @@ function generateData(newCfg) {
   READS.sort((a, b) => a.start - b.start);
   READS.forEach((r, i) => r.id = i + 1);
 
-  // 4. SBS 演示数据（步骤3）
+  // 5. 计算比对详情（供Step5可视化使用）
+  ALIGN_DETAILS = READS.map(r => alignOneRead(r));
+
+  // 6. SBS 演示数据（步骤3）
   SBS_TEMPLATE = REF.slice(0, Math.min(12, CFG.dnaLen));
   SBS_GROWING  = SBS_TEMPLATE.split('').map(b => COMPLEMENT[b]);
 
-  // 5. 荧光信号数据（步骤4）
+  // 7. 荧光信号数据（步骤4）
   SIGNAL_DATA = SBS_GROWING.slice(0, 8).map((base, pos) => {
     const noise = (pos * 7 + 3) % 15;
     const s = {
