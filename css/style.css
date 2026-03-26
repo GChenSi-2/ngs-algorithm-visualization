@@ -131,6 +131,85 @@ body {
 .step-connector { width: 16px; height: 2px; background: var(--border); flex-shrink: 0; }
 
 /* ============================
+   Config Panel
+   ============================ */
+#cfg-bar {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 7px 20px;
+  flex-shrink: 0;
+}
+.cfg-inner {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.cfg-field {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.cfg-lbl {
+  font-size: 11px;
+  color: var(--text2);
+  white-space: nowrap;
+}
+.cfg-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 90px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  outline: none;
+  cursor: pointer;
+}
+.cfg-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.cfg-slider::-webkit-slider-thumb:hover { background: #58a6ff; }
+.cfg-slider::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+}
+.cfg-val {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 38px;
+}
+.cfg-gen-btn {
+  margin-left: auto;
+  background: rgba(63,185,80,0.15);
+  border: 1px solid rgba(63,185,80,0.4);
+  color: var(--green);
+  padding: 4px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s;
+  font-family: inherit;
+}
+.cfg-gen-btn:hover {
+  background: rgba(63,185,80,0.28);
+  border-color: var(--green);
+}
+
+/* ============================
    Main Content
    ============================ */
 #content {
